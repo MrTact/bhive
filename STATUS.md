@@ -245,7 +245,7 @@ Phase 1 is complete when:
 
 ## Links
 
-- [Architecture Document](../../docs/HEADLESS_ARCHITECTURE.md)
+- [Architecture Document](docs/HEADLESS_ARCHITECTURE.md)
 - [Development Guide](DEVELOPMENT.md)
 - [Project README](README.md)
-- [Original PRD](../../docs/PRD.md)
+- [Original PRD](docs/PRD.md)

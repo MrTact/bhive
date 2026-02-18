@@ -29,22 +29,19 @@ Ant Army uses a **headless service architecture**:
 ## Project Structure
 
 ```
-ant-army/
-├── repo/
-│   ├── main/              # Main codebase
-│   │   ├── crates/
-│   │   │   ├── ant-army-core/      # Core orchestration logic
-│   │   │   ├── ant-army-api/       # REST/WebSocket API server
-│   │   │   ├── ant-army-cli/       # CLI client
-│   │   │   ├── ant-army-queen/     # Queen agent implementation
-│   │   │   └── ant-army-worker/    # Worker ant implementation
-│   │   └── Cargo.toml
-│   └── workspaces/        # Ant workspaces (dogfooding)
-└── docs/                  # Documentation
-    ├── PRD.md
-    ├── ARCHITECTURE.md
-    ├── HEADLESS_ARCHITECTURE.md
-    └── ...
+ant-army/repo/main/
+├── crates/
+│   ├── ant-army-core/      # Core orchestration logic
+│   ├── ant-army-api/       # REST/WebSocket API server
+│   ├── ant-army-cli/       # CLI client
+│   ├── ant-army-queen/     # Queen agent implementation
+│   └── ant-army-worker/    # Worker ant implementation
+├── docs/                   # Documentation
+│   ├── PRD.md
+│   ├── ARCHITECTURE.md
+│   ├── HEADLESS_ARCHITECTURE.md
+│   └── research/           # Research documents
+└── Cargo.toml
 ```
 
 ## Technology Stack
@@ -112,10 +109,10 @@ cargo run --bin ant-army-cli -- task create "Implement user authentication"
 
 See the `docs/` directory for detailed documentation:
 
-- [PRD](../../docs/PRD.md) - Product requirements
-- [Architecture](../../docs/ARCHITECTURE.md) - System architecture
-- [Headless Architecture](../../docs/HEADLESS_ARCHITECTURE.md) - API-first design
-- [Coordination Layer](../../docs/COORDINATION_LAYER.md) - PostgreSQL coordination
+- [PRD](docs/PRD.md) - Product requirements
+- [Architecture](docs/ARCHITECTURE.md) - System architecture
+- [Headless Architecture](docs/HEADLESS_ARCHITECTURE.md) - API-first design
+- [Coordination Layer](docs/COORDINATION_LAYER.md) - PostgreSQL coordination
 
 ## Contributing
 
