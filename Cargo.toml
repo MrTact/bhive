@@ -1,0 +1,61 @@
+[workspace]
+members = [
+    "crates/ant-army-core",
+    "crates/ant-army-api",
+    "crates/ant-army-cli",
+    "crates/ant-army-queen",
+    "crates/ant-army-worker",
+]
+resolver = "2"
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+license = "Apache-2.0"
+authors = ["tkeating"]
+
+[workspace.dependencies]
+# Async runtime
+tokio = { version = "1.41", features = ["full"] }
+tokio-util = "0.7"
+
+# Web framework
+axum = { version = "0.7", features = ["ws", "macros"] }
+tower = "0.5"
+tower-http = { version = "0.6", features = ["trace", "cors"] }
+
+# Serialization
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+
+# Database
+sqlx = { version = "0.8", features = ["runtime-tokio-rustls", "postgres", "uuid", "chrono"] }
+
+# Agent framework
+rig-core = "0.4"
+
+# Multi-provider LLM client
+genai = "0.1"
+
+# Error handling
+anyhow = "1.0"
+thiserror = "1.0"
+
+# Tracing/logging
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+# CLI
+clap = { version = "4.5", features = ["derive", "env"] }
+
+# UUIDs
+uuid = { version = "1.10", features = ["v4", "serde"] }
+
+# Time
+chrono = { version = "0.4", features = ["serde"] }
+
+# VCS integration
+git2 = "0.19"
+
+# Utilities
+futures = "0.3"
