@@ -18,8 +18,12 @@ uuid = { workspace = true }
 chrono = { workspace = true }
 futures = { workspace = true }
 
-# Agent framework
-rig-core = { workspace = true }
+# Configuration
+toml = "0.8"
+dirs = "5.0"
 
-# Multi-provider LLM
-genai = { workspace = true }
+# Agent framework (TODO: enable when ready)
+# rig-core = { workspace = true }
+
+# Multi-provider LLM (TODO: enable when ready)
+# genai = { workspace = true }

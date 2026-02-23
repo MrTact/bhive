@@ -1,9 +1,9 @@
 //! API request handlers
 
 use ant_army_core::{
-    task::{CreateTaskRequest, CreateTaskResponse},
+    task::{CreateTaskRequest, CreateTaskResponse, Task},
     types::{Status, TaskId, WorkerId},
-    Task, Worker,
+    worker::Worker,
 };
 use axum::{
     extract::{Path, State},
@@ -14,10 +14,10 @@ use axum::{
     },
     Json,
 };
-use chrono::Utc;
 use futures::stream::{self, Stream};
 use std::convert::Infallible;
 
+use crate::extractors::ProjectId;
 use crate::state::AppState;
 
 /// Health check endpoint
@@ -27,20 +27,43 @@ pub async fn health() -> &'static str {
 
 /// Create a new task
 pub async fn create_task(
-    State(_state): State<AppState>,
+    State(state): State<AppState>,
+    ProjectId(project_id): ProjectId,
     Json(request): Json<CreateTaskRequest>,
 ) -> Result<Json<CreateTaskResponse>, StatusCode> {
-    tracing::info!("Creating task: {}", request.description);
+    tracing::info!(
+        "Creating task in project {}: {}",
+        project_id,
+        request.description
+    );
 
-    // TODO: Implement actual task creation with queen agent
-    // For now, return a stub response
+    // Get coordinator for this project
+    let coordinator = state.get_coordinator(&project_id).await.map_err(|e| {
+        tracing::error!("Failed to get coordinator: {}", e);
+        StatusCode::INTERNAL_SERVER_ERROR
+    })?;
 
-    let task_id = TaskId::new();
+    // Convert API request to coordination request
+    let coord_request = ant_army_core::coordination::CreateTaskRequest {
+        description: request.description.clone(),
+        parent_id: None,
+        session_id: None,
+        dependencies: vec![],
+    };
+
+    // Create task in coordination layer
+    let task = coordinator.create_task(coord_request).await.map_err(|e| {
+        tracing::error!("Failed to create task: {}", e);
+        StatusCode::INTERNAL_SERVER_ERROR
+    })?;
+
+    tracing::info!("Task created: {}", task.id);
+
     let response = CreateTaskResponse {
-        task_id,
+        task_id: TaskId::from(task.id),
         status: Status::Pending,
         workers_spawned: 0,
-        created_at: Utc::now(),
+        created_at: task.created_at,
     };
 
     Ok(Json(response))

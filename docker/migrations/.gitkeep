@@ -1,0 +1,10 @@
+# Migrations Directory
+
+This directory will contain SQL migration files for schema changes.
+
+Example structure:
+- 001_initial_schema.sql
+- 002_add_indexes.sql
+- 003_add_metrics.sql
+
+Migrations are applied using sqlx or other migration tools.

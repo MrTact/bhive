@@ -8,7 +8,9 @@
 //! - Provider abstraction (OpenAI, Anthropic, etc.)
 //! - Coordination layer interface (PostgreSQL)
 
+pub mod coordination;
 pub mod error;
+pub mod project;
 pub mod provider;
 pub mod task;
 pub mod types;

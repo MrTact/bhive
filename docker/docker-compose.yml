@@ -1,0 +1,110 @@
+# Ant Army Coordination Infrastructure
+#
+# This Docker Compose stack provides the shared infrastructure for all ant-army projects.
+# It includes:
+# - PostgreSQL: Task coordination and ant lifecycle management
+# - Future services: Qdrant (vector DB), Redis (caching), etc.
+#
+# Usage:
+#   docker-compose up -d              # Start services
+#   docker-compose down               # Stop services
+#   docker-compose logs -f postgres   # View logs
+#   docker-compose ps                 # Check status
+
+version: '3.8'
+
+name: ant-army
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: ant-army-postgres
+    restart: unless-stopped
+
+    environment:
+      # Main database credentials
+      POSTGRES_USER: ${POSTGRES_USER:-ant_army}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-ant_army_dev}
+      POSTGRES_DB: postgres  # Default database
+
+      # Enable multiple database support
+      POSTGRES_MULTIPLE_DATABASES: "true"
+
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+
+    volumes:
+      # Persistent data storage (centralized location)
+      - ${ANT_ARMY_DATA_DIR:-~/.config/ant-army/data/postgres}:/var/lib/postgresql/data
+
+      # Initialization scripts (run on first start)
+      - ./init-db.sh:/docker-entrypoint-initdb.d/init-db.sh:ro
+
+      # Schema migrations (mounted for easy access)
+      - ./migrations:/migrations:ro
+
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-ant_army} -d postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+    networks:
+      - ant-army
+
+  # Ant Army API Server
+  api:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.api
+    container_name: ant-army-api
+    restart: unless-stopped
+
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-ant_army}:${POSTGRES_PASSWORD:-ant_army_dev}@postgres:5432/postgres
+      RUST_LOG: ${RUST_LOG:-ant_army_api=debug,tower_http=debug}
+
+    ports:
+      - "${API_PORT:-3030}:3030"
+
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+    networks:
+      - ant-army
+
+  # Future services can be added here:
+  #
+  # qdrant:
+  #   image: qdrant/qdrant:latest
+  #   container_name: ant-army-qdrant
+  #   restart: unless-stopped
+  #   ports:
+  #     - "${QDRANT_PORT:-6333}:6333"
+  #   volumes:
+  #     - ${ANT_ARMY_DATA_DIR:-~/.config/ant-army/data/qdrant}:/qdrant/storage
+  #   networks:
+  #     - ant-army
+  #
+  # redis:
+  #   image: redis:7-alpine
+  #   container_name: ant-army-redis
+  #   restart: unless-stopped
+  #   ports:
+  #     - "${REDIS_PORT:-6379}:6379"
+  #   volumes:
+  #     - ${ANT_ARMY_DATA_DIR:-~/.config/ant-army/data/redis}:/data
+  #   networks:
+  #     - ant-army
+
+networks:
+  ant-army:
+    name: ant-army
+    driver: bridge
+
+# Volume definitions (optional - using bind mounts for easier access)
+# volumes:
+#   postgres-data:
+#   qdrant-data:
+#   redis-data:

@@ -21,8 +21,14 @@ pub enum Error {
     #[error("Database error: {0}")]
     DatabaseError(#[from] sqlx::Error),
 
+    #[error("Migration error: {0}")]
+    MigrationError(#[from] sqlx::migrate::MigrateError),
+
     #[error("Serialization error: {0}")]
     SerializationError(#[from] serde_json::Error),
+
+    #[error("IO error: {0}")]
+    IoError(#[from] std::io::Error),
 
     #[error("Worker spawn failed: {0}")]
     WorkerSpawnFailed(String),

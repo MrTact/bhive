@@ -25,6 +25,17 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Commands {
+    /// Initialize ant-army for this project
+    Init {
+        /// Database URL (defaults to local PostgreSQL)
+        #[arg(long, env = "DATABASE_URL")]
+        database_url: Option<String>,
+
+        /// Force re-initialization
+        #[arg(long)]
+        force: bool,
+    },
+
     /// Create a new task
     Task {
         #[command(subcommand)]
@@ -108,10 +119,23 @@ async fn main() -> Result<()> {
     tracing_subscriber::fmt::init();
 
     let cli = Cli::parse();
-    let client = ApiClient::new(&cli.api_url);
 
     match cli.command {
-        Commands::Task { action } => match action {
+        Commands::Init {
+            database_url,
+            force,
+        } => {
+            commands::init::run(database_url, force).await?;
+        }
+        Commands::Task { action } => {
+            // Get current project
+            let project = commands::project::get_current_project()?;
+            let client = ApiClient::new(&cli.api_url).with_project_id(project.project_id.clone());
+
+            // Update last seen
+            let _ = commands::project::update_project_last_seen();
+
+            match action {
             TaskCommands::Create {
                 description,
                 files,
@@ -138,20 +162,39 @@ async fn main() -> Result<()> {
             TaskCommands::List => {
                 commands::task::list(&client).await?;
             }
-        },
-        Commands::Workers { action } => match action {
+            }
+        }
+        Commands::Workers { action } => {
+            // Get current project
+            let project = commands::project::get_current_project()?;
+            let client = ApiClient::new(&cli.api_url).with_project_id(project.project_id.clone());
+
+            // Update last seen
+            let _ = commands::project::update_project_last_seen();
+
+            match action {
             WorkerCommands::List => {
                 commands::worker::list(&client).await?;
             }
             WorkerCommands::Status { worker_id } => {
                 commands::worker::status(&client, &worker_id).await?;
             }
-        },
-        Commands::Queen { action } => match action {
+            }
+        }
+        Commands::Queen { action } => {
+            // Get current project
+            let project = commands::project::get_current_project()?;
+            let client = ApiClient::new(&cli.api_url).with_project_id(project.project_id.clone());
+
+            // Update last seen
+            let _ = commands::project::update_project_last_seen();
+
+            match action {
             QueenCommands::Status => {
                 commands::queen::status(&client).await?;
             }
-        },
+            }
+        }
     }
 
     Ok(())
