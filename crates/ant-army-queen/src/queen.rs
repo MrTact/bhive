@@ -119,30 +119,55 @@ impl Queen {
     /// Handle a coordination event
     async fn handle_event(&self, event: CoordinationEvent) -> Result<()> {
         match event {
-            CoordinationEvent::TaskCreated { task_id, .. } => {
-                tracing::info!("Received TaskCreated event for {}", task_id);
-                self.assign_task(task_id).await?;
+            CoordinationEvent::TaskCreated { task_id, description } => {
+                tracing::info!("TaskCreated: {} - {}", task_id, description);
+                if let Err(e) = self.assign_task(task_id).await {
+                    tracing::error!("Failed to assign task {}: {}", task_id, e);
+                    // TODO: Mark task as failed or retry
+                }
+                self.stats.write().await.total_assigned += 1;
             }
-            CoordinationEvent::TaskCompleted { task_id, .. } => {
-                tracing::info!("Received TaskCompleted event for {}", task_id);
+            CoordinationEvent::TaskCompleted { task_id, result } => {
+                tracing::info!("TaskCompleted: {} (has_result: {})", task_id, result.is_some());
+
                 // Find ant and release to pool
                 let pool = self.pool.read().await;
                 if let Some(ant_id) = pool.get_ant_for_task(task_id) {
                     drop(pool);
-                    self.release_ant_to_pool(ant_id).await?;
+                    if let Err(e) = self.release_ant_to_pool(ant_id).await {
+                        tracing::error!("Failed to release ant {}: {}", ant_id, e);
+                    }
+                } else {
+                    tracing::warn!("No ant found for completed task {}", task_id);
                 }
+
+                self.stats.write().await.total_completed += 1;
             }
-            CoordinationEvent::TaskFailed { task_id, .. } => {
-                tracing::warn!("Received TaskFailed event for {}", task_id);
-                // Find ant and mark as failed, release to pool
+            CoordinationEvent::TaskFailed { task_id, error } => {
+                tracing::warn!("TaskFailed: {} - {}", task_id, error);
+
+                // Find ant and release to pool
                 let pool = self.pool.read().await;
                 if let Some(ant_id) = pool.get_ant_for_task(task_id) {
                     drop(pool);
-                    self.release_ant_to_pool(ant_id).await?;
+                    // Release ant - it can be reused for other tasks
+                    if let Err(e) = self.release_ant_to_pool(ant_id).await {
+                        tracing::error!("Failed to release ant {}: {}", ant_id, e);
+                    }
+                } else {
+                    tracing::warn!("No ant found for failed task {}", task_id);
                 }
+
+                self.stats.write().await.total_failed += 1;
+            }
+            CoordinationEvent::AntAcquired { ant_id, ant_type, reused } => {
+                tracing::debug!("AntAcquired: {} (type: {}, reused: {})", ant_id, ant_type, reused);
+            }
+            CoordinationEvent::AntReleased { ant_id, success } => {
+                tracing::debug!("AntReleased: {} (success: {})", ant_id, success);
             }
             _ => {
-                // Ignore other events for now
+                tracing::trace!("Ignoring event: {:?}", event);
             }
         }
         Ok(())
@@ -152,64 +177,120 @@ impl Queen {
 #[async_trait::async_trait]
 impl QueenLifecycle for Queen {
     async fn start(&mut self) -> Result<()> {
-        tracing::info!("Starting Queen agent");
+        tracing::info!("🐜 Starting Queen agent");
 
         *self.running.write().await = true;
 
         // Set up notification listener
         if let Some(mut listener) = self.listener.take() {
-            listener
+            // Subscribe to channels
+            if let Err(e) = listener
                 .listen(&[channels::TASK_EVENTS, channels::ANT_EVENTS])
-                .await?;
+                .await
+            {
+                tracing::error!("Failed to subscribe to notification channels: {}", e);
+                return Err(e);
+            }
 
             let mut rx = listener.subscribe();
 
-            // Spawn listener loop
-            let running = self.running.clone();
-            let queen_clone = self.clone_for_event_loop();
-
+            // Spawn listener loop (consumes listener)
             tokio::spawn(async move {
-                listener.run().await.ok();
+                if let Err(e) = listener.run().await {
+                    tracing::error!("Notification listener error: {}", e);
+                }
+                tracing::warn!("Notification listener exited");
+                // TODO: Implement reconnection logic in future
             });
 
             // Spawn event handler loop
+            let running_clone = self.running.clone();
+            let queen_clone = self.clone_for_event_loop();
             tokio::spawn(async move {
-                while *running.read().await {
-                    if let Ok(event) = rx.recv().await {
-                        if let Err(e) = queen_clone.handle_event(event).await {
-                            tracing::error!("Error handling event: {}", e);
+                tracing::info!("Event handler loop started");
+                while *running_clone.read().await {
+                    match rx.recv().await {
+                        Ok(event) => {
+                            if let Err(e) = queen_clone.handle_event(event).await {
+                                tracing::error!("Error handling event: {}", e);
+                            }
+                        }
+                        Err(e) => {
+                            tracing::error!("Error receiving event: {}", e);
+                            // Brief sleep on error to avoid tight loop
+                            tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
                         }
                     }
                 }
+                tracing::info!("Event handler loop exited");
             });
+        } else {
+            tracing::error!("No notification listener available");
+            return Err(ant_army_core::Error::Other(anyhow::anyhow!(
+                "Notification listener not initialized"
+            )));
         }
 
-        // Spawn reaper loop
+        // Spawn reaper loop for idle ant cleanup
         let running = self.running.clone();
         let pool = self.pool.clone();
         let config = self.config.clone();
         tokio::spawn(async move {
+            tracing::info!("Reaper loop started (interval: {:?})", config.reap_interval);
             let mut interval = tokio::time::interval(config.reap_interval);
+
             while *running.read().await {
                 interval.tick().await;
-                let pool_read = pool.read().await;
-                let stale = pool_read.get_stale_idle_ants(config.idle_timeout);
-                drop(pool_read);
 
-                for ant_id in stale {
-                    tracing::info!("Reaping stale ant {}", ant_id);
-                    pool.write().await.remove(ant_id);
+                // Find stale ants
+                let stale = {
+                    let pool_read = pool.read().await;
+                    pool_read.get_stale_idle_ants(config.idle_timeout)
+                };
+
+                // Reap them
+                if !stale.is_empty() {
+                    tracing::info!("Reaping {} stale ants", stale.len());
+                    let mut pool_write = pool.write().await;
+                    for ant_id in stale {
+                        if let Some(info) = pool_write.remove(ant_id) {
+                            tracing::debug!(
+                                "Reaped ant {} (idle for {:?})",
+                                ant_id,
+                                info.last_active.elapsed()
+                            );
+                            // TODO: Cleanup workspace
+                        }
+                    }
                 }
             }
+            tracing::info!("Reaper loop exited");
         });
 
-        tracing::info!("Queen agent started");
+        tracing::info!("✓ Queen agent started successfully");
         Ok(())
     }
 
     async fn stop(&mut self) -> Result<()> {
-        tracing::info!("Stopping Queen agent");
+        tracing::info!("🛑 Stopping Queen agent...");
+
+        // Set running flag to false
         *self.running.write().await = false;
+
+        // Give tasks a moment to complete gracefully
+        tokio::time::sleep(tokio::time::Duration::from_millis(500)).await;
+
+        // Log final statistics
+        let stats = self.stats.read().await;
+        tracing::info!(
+            "Queen stopped - Stats: spawned={}, assigned={}, completed={}, failed={}",
+            stats.total_spawned,
+            stats.total_assigned,
+            stats.total_completed,
+            stats.total_failed
+        );
+
+        tracing::info!("✓ Queen agent stopped");
         Ok(())
     }
 
