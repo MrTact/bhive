@@ -1,14 +1,19 @@
 # Ant Army - Architecture
 
-**Version:** 0.1
-**Last Updated:** January 23, 2026
+**Version:** 0.2
+**Last Updated:** February 23, 2026
 **Status:** Design Phase
+
+---
+
+> [!IMPORTANT]
+> **Architecture Change (February 2026):** Ant Army is now being built **from scratch in Rust**, not as an OpenCode fork. See [HEADLESS_ARCHITECTURE.md](HEADLESS_ARCHITECTURE.md) for the current implementation approach and [COORDINATION_LAYER_RUST.md](COORDINATION_LAYER_RUST.md) for the coordination layer design.
 
 ---
 
 ## Overview
 
-Ant Army is a massively-scalable agentic development system built by forking and enhancing **OpenCode**, an open-source AI coding agent. It adds parallel agent orchestration, aggressive task decomposition, and learned capability patterns. The system transforms development from sequential work into coordinated swarm activity where hundreds or thousands of specialized "ant" agents work in parallel.
+Ant Army is a massively-scalable agentic development system built in **Rust** using modern LLM interaction crates (Rig, rust-genai). It provides parallel agent orchestration, aggressive task decomposition, and learned capability patterns. The system transforms development from sequential work into coordinated swarm activity where hundreds or thousands of specialized "ant" agents work in parallel.
 
 **Core Vision:**
 
@@ -16,98 +21,53 @@ Ant Army is a massively-scalable agentic development system built by forking and
 
 **Implementation Approach:**
 
-> Ant Army is not a separate system sitting on top of OpenCode. It IS OpenCode, enhanced with multi-agent parallel orchestration capabilities. One OpenCode process, with a "queen" coordinator agent spawning "ant" subagents.
+> Ant Army is a headless Rust service exposing a REST/WebSocket API. A "queen" coordinator agent spawns "ant" worker agents. Multiple client interfaces (CLI, VSCode extension, TUI) connect to this service.
 
 ---
 
-## Foundation: OpenCode Fork
+## Foundation: Rust Headless Service
 
-Ant Army is built by forking **OpenCode v1.1.32**, a production-ready open-source AI coding agent with comprehensive infrastructure.
+Ant Army is built from scratch in Rust with a service-first architecture.
 
-### What OpenCode Provides (Out of the Box)
+### Technology Stack
 
-**Repository:** `/Users/tkeating/git-repos/opencode`
-**Technology:** TypeScript, Bun runtime, SolidJS, OpenTUI framework
+**Core:**
+- **Language:** Rust
+- **Async Runtime:** Tokio
+- **HTTP Framework:** Axum
+- **Database:** PostgreSQL (coordination layer)
+- **Agent Framework:** Rig
+- **Multi-Provider LLM:** rust-genai
 
-#### ✅ **Complete Infrastructure Already Built:**
+**Clients:**
+- CLI (Rust, clap)
+- VSCode Extension (TypeScript)
+- TUI (future - fork of codex-rs/tui)
 
-1. **TUI Framework (OpenTUI)**
-   - SolidJS-based terminal UI
-   - Dialogs, status displays, session lists
-   - Keyboard shortcuts and themes
-   - Smooth, reactive interface
-
-2. **Session Management**
-   - Create, fork, archive sessions
-   - Persistence to `~/.opencode/`
-   - Event-driven updates
-   - Share/export capabilities
-
-3. **Agent System**
-   - Configurable agents: build (primary), plan (read-only), general (subagent)
-   - Permission-based access control
-   - Model override per agent
-   - Temperature and parameter control
-
-4. **Tool System (25+ Tools)**
-   - File ops: edit, read, write, glob, ls
-   - Search: grep, codesearch
-   - Execution: bash (with rate limiting)
-   - Development: lsp, question, task
-   - All core primitives we need
-
-5. **Event Bus Architecture**
-   - Pub/sub for cross-component communication
-   - Strongly-typed events (Zod schemas)
-   - Session, VCS, FileWatcher events
-
-6. **Storage & Logging**
-   - File-based key-value store
-   - Structured logging with service tags
-   - Logs to `~/.opencode/logs/`
-
-7. **Git Worktree Support**
-   - Isolated git worktrees for parallel work
-   - Auto-generated branch names
-   - Workspace management
-
-8. **Configuration System**
-   - JSONC configuration files
-   - Remote → Global → Project precedence
-   - Agent definitions via config
-   - Plugin and skill system
-
-9. **MCP Integration**
-   - Model Context Protocol support
-   - OAuth integration
-   - External tool integration
+See [HEADLESS_ARCHITECTURE.md](HEADLESS_ARCHITECTURE.md) for detailed architecture.
 
 ---
 
-## Ant Army Enhancements
+## Core Capabilities
 
-### What We're Adding to OpenCode:
+#### **1. Agent Types**
 
-#### **1. New Agent Types**
-
-**OpenCode has:** build (primary), plan (read-only), general (subagent)
-
-**We add:**
+Ant Army defines specialized agent types:
 
 - **queen** - Primary coordinator agent (decomposes tasks, spawns ants, aggregates results)
-- **ant-operator** - Subagent for focused development tasks
-- **ant-review** - Subagent for code review with clean context
-- **ant-integration** - Subagent for merging results
+- **ant-operator** - Worker agent for focused development tasks
+- **ant-review** - Worker agent for code review with clean context
+- **ant-integration** - Worker agent for merging results
 
 ```
 User request: "Add authentication system"
 
-OpenCode (standard):
-└─ build agent handles entire task (large context)
+Traditional (single agent):
+└─ One agent handles entire task (large context)
 
-Ant Army (enhanced):
+Ant Army:
 └─ queen agent receives task
-   ├─ Decomposes into 8 subtasks via task/decompose.ts
+   ├─ Decomposes into 8 subtasks
    ├─ Spawns Ant #1: "Define auth middleware" (500 tokens)
    ├─ Spawns Ant #2: "Implement JWT generation" (400 tokens)
    ├─ Spawns Ant #3: "Implement JWT validation" (450 tokens)
@@ -117,7 +77,7 @@ Ant Army (enhanced):
    ├─ Spawns Ant #7: "Write integration tests" (500 tokens)
    └─ Spawns Ant #8: "Update API docs" (300 tokens)
 
-Result: 8 ants work in parallel vs 1 developer sequentially
+Result: 8 ants work in parallel vs 1 agent sequentially
 ```
 
 **Benefits:**
@@ -234,51 +194,34 @@ Cost: $5-10 (acceptable for 30-minute turnaround)
 
 ## Detailed Architecture
 
-### Overview: OpenCode + Ant Army Modules
-
-Ant Army extends OpenCode by adding new modules alongside existing infrastructure:
+### Crate Organization
 
 ```
-/packages/opencode/src/
-├─ agent/           (EXTEND) Add queen, ant-operator, ant-review agents
-├─ session/         (EXTEND) Add parent/child session relationships
-├─ tool/            (EXTEND) Add spawn-ant, decompose tools
-├─ tui/component/   (EXTEND) Add multi-agent dashboard components
-├─ vcs/             (NEW) Abstract VCS interface + Jujutsu implementation
-├─ task/            (NEW) Decomposition and coordination
-├─ memory/          (NEW) LEGOMem pattern storage
-└─ routing/         (NEW) Intelligent model selection
+crates/
+├─ ant-army-core/       # Core types, coordination, agent definitions
+│   ├─ agent/           # Queen, ant-operator, ant-review, ant-integration
+│   ├─ coordination/    # PostgreSQL-based task coordination
+│   ├─ vcs/             # Abstract VCS interface + Jujutsu implementation
+│   ├─ task/            # Decomposition and DAG management
+│   ├─ memory/          # LEGOMem pattern storage (Qdrant)
+│   └─ routing/         # Intelligent model selection
+├─ ant-army-api/        # Axum REST/WebSocket API server
+├─ ant-army-cli/        # CLI client
+└─ ant-army-llm/        # Rig + rust-genai integration
 ```
 
-### Layer 1: Queen Agent (OpenCode Agent Extension)
+See [COORDINATION_LAYER_RUST.md](COORDINATION_LAYER_RUST.md) for detailed Rust implementation.
+
+### Layer 1: Queen Agent
 
 **Role:** High-level coordination and pattern matching
 
-**Implementation:** New OpenCode agent type defined in `agent/agent.ts`
-
-**Configuration:**
-
-```jsonc
-// .opencode/opencode.jsonc
-{
-  "agent": [
-    {
-      "name": "queen",
-      "mode": "primary",
-      "description": "Coordinates parallel ant swarm execution",
-      "permission": { "*": "allow" },
-      "tools": ["spawn_ant", "decompose_task", "query_patterns"],
-    },
-  ],
-}
-```
-
 **Responsibilities:**
 
-- Receive user requests (like standard OpenCode primary agent)
+- Receive user requests via API
 - Query capability library (learned patterns)
 - Decide: Use learned pattern or decompose novel task
-- Spawn ant subagents as child OpenCode sessions
+- Spawn ant workers as Tokio tasks
 - Aggregate results from ants
 - Manage quality tier selection
 
@@ -287,7 +230,7 @@ Ant Army extends OpenCode by adding new modules alongside existing infrastructur
 ```
 User Request → Queen Agent
     ↓
-Pattern Match Query (Vector DB via memory/legomem.ts)
+Pattern Match Query (Vector DB)
     ↓
     ├─ Match Found (similarity > 0.9)
     │   ├─ Load Template
@@ -296,7 +239,7 @@ Pattern Match Query (Vector DB via memory/legomem.ts)
     │
     └─ No Match / Novel Task
         ├─ Analyze complexity
-        ├─ Decompose via task/decompose.ts
+        ├─ Decompose into task DAG
         └─ Spawn ants for execution
 ```
 
@@ -466,216 +409,153 @@ class TaskDecomposer:
 4. **Testable:** Each subtask verifiable independently
 5. **Composable:** Results combine into complete solution
 
-### Layer 4: Execution Framework (OpenCode Session Management)
+### Layer 4: Execution Framework
 
-**Role:** Convert plans to executable workflows via child sessions
+**Role:** Convert plans to executable workflows via worker tasks
 
-**Implementation:** Extends OpenCode session management to support parent/child relationships
+**Implementation:** PostgreSQL coordination with Tokio task spawning
 
-#### **4.1 Session Hierarchy**
+#### **4.1 Ant Lifecycle**
 
-```typescript
-// session/session.ts - EXTENDED
-interface Session {
-  id: string
-  slug: string
-  parentSessionId?: string // NEW: Link to queen session
-  role: "queen" | "ant-operator" | "ant-review" | "ant-integration" // NEW
-  assignedTaskId?: string // NEW: Link to task DB
-  workspace?: WorkspaceInfo // NEW: Jujutsu workspace details
-  // ... existing OpenCode session fields
+```rust
+// crates/ant-army-core/src/coordination/types.rs
+pub struct Ant {
+    pub id: String,
+    pub ant_type: AntType,  // Operator, Review, Integration
+    pub status: AntStatus,  // Idle, Working, Completed, Failed
+    pub current_task_id: Option<String>,
+    pub workspace_path: Option<PathBuf>,
+    pub model: String,
+    pub created_at: DateTime<Utc>,
 }
 
-interface WorkspaceInfo {
-  vcsType: "git" | "jujutsu"
-  path: string
-  branchOrWorkspace: string
-  baseCommitId: string
+pub struct WorkspaceInfo {
+    pub vcs_type: VcsType,  // Git or Jujutsu
+    pub path: PathBuf,
+    pub branch_or_workspace: String,
+    pub base_commit_id: String,
 }
 ```
 
-#### **4.2 Spawn Ant Tool (New)**
+#### **4.2 Spawn Ant**
 
-```typescript
-// tool/spawn-ant.ts - NEW
-export const spawnAntTool: Tool = {
-  name: "spawn_ant",
-  description: "Spawn an ant subagent to execute a subtask",
-  parameters: z.object({
-    antType: z.enum(["ant-operator", "ant-review", "ant-integration"]),
-    taskId: z.string(),
-    model: z.string().optional(),
-    workspace: z.string().optional(),
-  }),
-
-  async execute({ antType, taskId, model, workspace }) {
-    // Create Jujutsu workspace if needed
-    const workspaceInfo = workspace || (await vcs.createWorkspace(`ant-${taskId}`))
-
-    // Create child session
-    const childSession = await sessionManager.createChildSession({
-      parentSessionId: getCurrentSession().id,
-      role: antType,
-      agentType: antType, // Use ant agent config
-      assignedTaskId: taskId,
-      workspace: workspaceInfo,
-      model: model || routeModel(taskId), // Intelligent routing
-    })
-
-    // Load task context and assign
-    const task = await taskCoordinator.getTask(taskId)
-    const compressedContext = await compressContext(task.context)
-
-    // Start child session with task
-    await sessionManager.startSession(childSession.id, {
-      prompt: formatTaskPrompt(task, compressedContext),
-    })
-
-    return { sessionId: childSession.id, workspace: workspaceInfo }
-  },
+```rust
+// crates/ant-army-core/src/agent/queen.rs
+impl Queen {
+    pub async fn spawn_ant(
+        &self,
+        ant_type: AntType,
+        task_id: &str,
+        model: Option<&str>,
+    ) -> Result<Ant> {
+        // Create Jujutsu workspace
+        let workspace = self.vcs.create_workspace(&format!("ant-{}", task_id)).await?;
+        
+        // Acquire ant from pool (or create new)
+        let ant = self.coordinator.acquire_ant(ant_type).await?;
+        
+        // Assign task and workspace
+        self.coordinator.assign_task(&ant.id, task_id, &workspace.path).await?;
+        
+        // Spawn Tokio task for ant execution
+        let ant_id = ant.id.clone();
+        tokio::spawn(async move {
+            self.run_ant_loop(ant_id, task_id).await
+        });
+        
+        Ok(ant)
+    }
 }
 ```
 
 #### **4.3 Task Execution Coordination**
 
-```typescript
-// task/coordinator.ts - NEW
-class TaskCoordinator {
-  /**
-   * Executes decomposed tasks using ant child sessions
-   *
-   * Strategy:
-   * 1. Store tasks in in-memory queue (or PostgreSQL for Phase 2)
-   * 2. Compress contexts before assigning
-   * 3. Route to appropriate models
-   * 4. Spawn ants as child OpenCode sessions
-   * 5. Monitor completion via session events
-   * 6. Review completed work
-   * 7. Handle failures with rework loop
-   * 8. Integrate approved changes
-   */
+See [COORDINATION_LAYER_RUST.md](COORDINATION_LAYER_RUST.md) for the complete PostgreSQL-based coordination implementation.
 
-  async execute(decomposed: DecomposedTask): Promise<ExecutionResult> {
-    // Store tasks in coordinator (in-memory or DB)
-    await this.storeTasks(decomposed.subtasks)
-
-    // Build execution waves (dependency-aware parallelization)
-    const waves = this.buildExecutionWaves(decomposed.subtasks)
-
-    // Execute wave by wave
-    for (const wave of waves) {
-      // Spawn ants for all tasks in this wave (parallel)
-      const antSessions = await Promise.all(wave.tasks.map((task) => this.spawnAnt(task)))
-
-      // Wait for wave to complete (monitor child sessions)
-      await this.waitForWave(antSessions)
-
-      // Review completed tasks
-      const reviewed = await this.reviewWave(wave.tasks)
-
-      // Handle rework if needed
-      const reworkTasks = reviewed.filter((r) => r.needsRework)
-      if (reworkTasks.length > 0) {
-        await this.handleRework(reworkTasks)
-      }
+```rust
+// crates/ant-army-core/src/coordination/coordinator.rs
+impl Coordinator {
+    /// Executes decomposed tasks using ant workers
+    ///
+    /// Strategy:
+    /// 1. Pre-create all tasks with dependencies in PostgreSQL
+    /// 2. Subscribe to LISTEN/NOTIFY for task_ready events
+    /// 3. Spawn ants for ready tasks (no unmet dependencies)
+    /// 4. Monitor completion via database events
+    /// 5. Review completed work
+    /// 6. Handle failures with rework loop
+    /// 7. Integrate approved changes
+    
+    pub async fn execute(&self, decomposed: DecomposedTask) -> Result<ExecutionResult> {
+        // Store all tasks in database with dependencies
+        self.store_tasks(&decomposed.subtasks).await?;
+        
+        // Subscribe to notifications
+        let mut notifications = subscribe(&self.pool).await?;
+        
+        // Process notifications (task_ready, task_completed, ant_idle)
+        while let Some(notification) = notifications.recv().await {
+            match notification {
+                Notification::TaskReady { task_id, ant_type } => {
+                    self.spawn_ant_for_task(&task_id, ant_type).await?;
+                }
+                Notification::TaskCompleted { task_id } => {
+                    self.handle_task_completion(&task_id).await?;
+                }
+                // ...
+            }
+        }
+        
+        self.integrate_results().await
     }
-
-    // Final integration
-    return await this.integrateResults()
-  }
-
-  private async spawnAnt(task: SubTask): Promise<string> {
-    // Use spawn_ant tool via queen agent
-    const result = await tools.executeTool("spawn_ant", {
-      antType: task.antType,
-      taskId: task.id,
-      model: task.suggestedModel,
-      workspace: await vcs.createWorkspace(`ant-${task.id}`),
-    })
-
-    return result.sessionId
-  }
-
-  private async waitForWave(sessionIds: string[]): Promise<void> {
-    // Monitor child sessions via OpenCode event bus
-    await Promise.all(sessionIds.map((id) => eventBus.waitForEvent("session:completed", { sessionId: id })))
-  }
 }
 ```
 
 #### **4.4 In-Place Adaptation (Routine-Inspired)**
 
-```typescript
-// task/adaptation.ts - NEW
-class AdaptiveExecution {
-  /**
-   * Adapts execution plan based on failures
-   *
-   * Instead of replanning entire workflow:
-   * 1. Analyze failure from child session
-   * 2. Modify failing task structurally
-   * 3. Respawn ant with updated approach
-   */
-
-  async adaptOnFailure(failedSession: Session, errorContext: SessionError): Promise<AdaptationResult> {
-    const task = await taskCoordinator.getTask(failedSession.assignedTaskId!)
-    const failureType = this.classifyFailure(errorContext)
-
-    switch (failureType) {
-      case "missing_dependency":
-        // Insert missing prerequisite task
-        const newTask = await this.createDependencyTask(errorContext)
-        await taskCoordinator.insertTaskBefore(task.id, newTask)
-        break
-
-      case "wrong_approach":
-        // Update task with alternative strategy
-        const altStrategy = await this.findAlternativeStrategy(task, errorContext)
-        await taskCoordinator.updateTask(task.id, { approach: altStrategy })
-        break
-
-      case "insufficient_model":
-        // Upgrade to more capable model
-        await taskCoordinator.updateTask(task.id, {
-          suggestedModel: "gpt-4o", // Upgrade from mini
-        })
-        break
+```rust
+// crates/ant-army-core/src/task/adaptation.rs
+impl AdaptiveExecution {
+    /// Adapts execution plan based on failures
+    ///
+    /// Instead of replanning entire workflow:
+    /// 1. Analyze failure from ant worker
+    /// 2. Modify failing task structurally
+    /// 3. Respawn ant with updated approach
+    
+    pub async fn adapt_on_failure(
+        &self,
+        task_id: &str,
+        error: &TaskError,
+    ) -> Result<AdaptationResult> {
+        let task = self.coordinator.get_task(task_id).await?;
+        let failure_type = self.classify_failure(error);
+        
+        match failure_type {
+            FailureType::MissingDependency => {
+                // Insert missing prerequisite task
+                let new_task = self.create_dependency_task(error).await?;
+                self.coordinator.insert_task_before(task_id, &new_task).await?;
+            }
+            FailureType::WrongApproach => {
+                // Update task with alternative strategy
+                let alt_strategy = self.find_alternative_strategy(&task, error).await?;
+                self.coordinator.update_task(task_id, alt_strategy).await?;
+            }
+            FailureType::InsufficientModel => {
+                // Upgrade to more capable model
+                self.coordinator.update_task_model(task_id, "gpt-4o").await?;
+            }
+        }
+        
+        Ok(AdaptationResult::Retry { task_id: task_id.to_string() })
     }
-
-    // Respawn ant with updated plan
-    return { action: "retry", taskId: task.id }
-  }
 }
 ```
 
 ### Layer 5: Agent Layer (Ant Agent Types)
 
-**Implementation:** New OpenCode agent configurations in `agent/agent.ts`
-
 #### **5.1 Operator Ants**
-
-**Configuration:**
-
-```jsonc
-// .opencode/opencode.jsonc
-{
-  "agent": [
-    {
-      "name": "ant-operator",
-      "mode": "subagent",
-      "description": "Executes focused development subtasks in isolation",
-      "permission": {
-        "edit": "allow",
-        "write": "allow",
-        "bash": "allow",
-        "read": "allow",
-      },
-      "maxSteps": 10,
-      "tools": ["edit", "write", "read", "bash", "grep", "glob"],
-    },
-  ],
-}
-```
 
 **Runtime Characteristics:**
 
@@ -684,50 +564,27 @@ Role: Implement specific subtasks
 Context: 300-500 tokens (compressed)
 Model: Routed based on complexity (by queen)
 Workspace: Individual Jujutsu workspace (isolated)
-Session: Child OpenCode session
-Lifecycle: Spawn → Execute → Self-Review → Report → Archive
+Lifecycle: Spawn → Execute → Self-Review → Report → Complete
 ```
 
 **Operator Ant Workflow:**
 
 ```
-1. Spawned as child session by queen agent
-2. Receives compressed task context in session prompt
+1. Spawned as Tokio task by queen
+2. Receives compressed task context
 3. Workspace already set up (jj workspace add ant-{id})
 4. Update workspace: jj workspace update-stale
 5. Create new commit: jj new main
 6. Implement subtask (focused, single goal)
 7. Self-review against task requirements
-8. Run local quality checks (tests, lint) via bash tool
+8. Run local quality checks (tests, lint)
 9. Commit: jj describe -m "description"
 10. Create bookmark: jj bookmark create feature-{id}
-11. Report completion via session completion
-12. Session archived, workspace kept for review/integration
+11. Report completion to coordinator
+12. Workspace kept for review/integration
 ```
 
 #### **5.2 Review Ants**
-
-**Configuration:**
-
-```jsonc
-{
-  "agent": [
-    {
-      "name": "ant-review",
-      "mode": "subagent",
-      "description": "Reviews code with clean context (no generation bias)",
-      "permission": {
-        "edit": "deny", // Read-only for review
-        "write": "deny",
-        "bash": "allow", // Can run tests
-        "read": "allow",
-      },
-      "maxSteps": 5,
-      "tools": ["read", "grep", "bash"],
-    },
-  ],
-}
-```
 
 **Runtime Characteristics:**
 
@@ -736,14 +593,13 @@ Role: Code review with clean context
 Context: Code to review + quality standards (no generation context!)
 Model: Capable model (GPT-4o or better), can use different provider
 Workspace: Read-only access to developer's workspace
-Session: Child OpenCode session
-Lifecycle: Spawn → Review → Approve/Reject → Archive
+Lifecycle: Spawn → Review → Approve/Reject → Complete
 ```
 
 **Review Ant Workflow:**
 
 ```
-1. Spawned as child session by queen/coordinator
+1. Spawned by queen/coordinator
 2. Receives commit ID to review (clean context, no generation history)
 3. Workspace points to developer's jj workspace (read-only)
 4. Check out commit: jj edit {commit-id}
@@ -753,36 +609,13 @@ Lifecycle: Spawn → Review → Approve/Reject → Archive
    - Best practices
    - Test coverage
 6. If cross-provider tier: Different provider for independence
-7. Run tests: bash "npm test" or similar
-8. Decision via session output:
+7. Run tests
+8. Decision:
    - Approve → Return success
    - Reject → Return failure with inline comments
-9. Session archived
 ```
 
 #### **5.3 Integration Ants**
-
-**Configuration:**
-
-```jsonc
-{
-  "agent": [
-    {
-      "name": "ant-integration",
-      "mode": "subagent",
-      "description": "Merges approved changes (hackathon Merger role)",
-      "permission": {
-        "edit": "allow", // Can resolve conflicts
-        "write": "allow",
-        "bash": "allow",
-        "read": "allow",
-      },
-      "maxSteps": 15,
-      "tools": ["edit", "write", "read", "bash", "grep"],
-    },
-  ],
-}
-```
 
 **Runtime Characteristics:**
 
@@ -791,8 +624,7 @@ Role: Merge approved changes into main
 Context: Approved code + potential merge conflicts
 Model: Capable model (handles conflict resolution)
 Workspace: Integration workspace (can modify)
-Session: Child OpenCode session
-Lifecycle: Spawn → Rebase → Merge → Verify → Archive
+Lifecycle: Spawn → Rebase → Merge → Verify → Complete
 ```
 
 **Integration Ant Workflow:**
@@ -990,12 +822,12 @@ API Rate Limits:
 ├─ Anthropic: 5K requests/min (Scale tier)
 └─ Need multiple accounts for massive scale
 
-OpenCode Sessions (Ant Pool):
-├─ Each ant = one OpenCode child session
-├─ Session spawn: < 500ms (OpenCode is fast)
-├─ Max concurrent: Limited by rate limits, not sessions
-├─ In-process coordination (no external orchestrator)
-└─ Memory: ~50MB per active session
+Ant Workers (Tokio Tasks):
+├─ Each ant = one Tokio task
+├─ Worker spawn: < 100ms
+├─ Max concurrent: Limited by rate limits, not workers
+├─ PostgreSQL-based coordination
+└─ Memory: ~20MB per active worker
 ```
 
 **Storage:**
@@ -1013,11 +845,11 @@ Jujutsu Repository:
 ├─ 100 concurrent ants = 100GB disk
 └─ Cleanup: Remove idle workspaces after 1 hour
 
-OpenCode State (~/.opencode/):
-├─ Session archives: ~10MB per session
-├─ 1000 ant sessions = 10GB archived
-├─ Automatic cleanup after 30 days
-└─ Task coordination: In-memory or PostgreSQL (Phase 2)
+Ant Army State (~/.config/ant-army/):
+├─ PostgreSQL database per project
+├─ Qdrant vector DB for LEGOMem
+├─ Event logs and metrics
+└─ See COORDINATION_LAYER_RUST.md for details
 ```
 
 **Cost Estimates:**
@@ -1060,32 +892,34 @@ TODO.md on each Jujutsu branch
 - Manual conflict resolution required
 - Can't handle hundreds of concurrent ants
 
-### Solution: In-Process Coordination (Phase 1) → Database (Phase 2)
+### Solution: PostgreSQL-Based Coordination
 
-**Architecture: One OpenCode Process**
+See [COORDINATION_LAYER_RUST.md](COORDINATION_LAYER_RUST.md) for the complete implementation.
+
+**Architecture: Rust Headless Service**
 
 ```
 ┌────────────────────────────────────────────────────────┐
-│              OpenCode (Enhanced)                       │
+│              Ant Army Service (Rust)                   │
 │                                                        │
 │  ┌──────────────────────────────────────────────────┐ │
-│  │         Queen Agent Session                      │ │
+│  │         Queen Agent                              │ │
 │  │  ┌────────────────────────────────────────────┐ │ │
-│  │  │  Task Coordinator (task/coordinator.ts)    │ │ │
-│  │  │  - In-memory task queue (Phase 1)         │ │ │
-│  │  │  - Dependency graph                        │ │ │
-│  │  │  - Spawn/monitor child sessions           │ │ │
+│  │  │  Coordinator (coordination/coordinator.rs) │ │ │
+│  │  │  - PostgreSQL task queue                   │ │ │
+│  │  │  - LISTEN/NOTIFY for events               │ │ │
+│  │  │  - Spawn/monitor Tokio tasks              │ │ │
 │  │  └────────────┬───────────────────────────────┘ │ │
 │  │               │                                  │ │
 │  │  ┌────────────┴────────┬─────────────┐          │ │
 │  │  ▼                     ▼             ▼          │ │
-│  │ [Child Session 1]  [Child Session 2] [Child N] │ │
-│  │ Ant Developer      Ant Developer     Ant Review│ │
-│  │ (jj workspace)     (jj workspace)    (jj ws)   │ │
+│  │ [Tokio Task 1]    [Tokio Task 2]  [Task N]     │ │
+│  │ Ant Operator      Ant Operator     Ant Review  │ │
+│  │ (jj workspace)    (jj workspace)   (jj ws)     │ │
 │  └──────────────────────────────────────────────────┘ │
 │                                                        │
-│  [OpenCode Event Bus - session:completed events]      │
-│  [OpenCode Storage - task state & results]            │
+│  [PostgreSQL LISTEN/NOTIFY - task events]             │
+│  [PostgreSQL tables - task state & results]           │
 └────────────────────────────────────────────────────────┘
 ```
 
@@ -1495,19 +1329,18 @@ await eventLogger.logEvent(sessionId, "task_completed", antId, taskId, {
 
 ## Technology Stack
 
-### Core Framework (From OpenCode)
+### Core Framework
 
-- **Base:** OpenCode v1.1.32 fork
-- **Runtime:** Bun (fast TypeScript runtime, from OpenCode)
-- **Language:** TypeScript (strict mode)
-- **TUI Framework:** OpenTUI (@opentui/solid) - SolidJS-based terminal UI
-- **UI Library:** SolidJS (reactive UI for terminal components)
+- **Language:** Rust
+- **Async Runtime:** Tokio
+- **HTTP Framework:** Axum
+- **Database:** PostgreSQL 16 (sqlx)
+- **Agent Framework:** Rig
+- **Multi-Provider LLM:** rust-genai
 - **Version Control:**
-  - **Primary:** Jujutsu (parallel workspace support) - NEW in Ant Army
-  - **Fallback:** Git worktrees (from OpenCode)
-- **Configuration:** JSONC (from OpenCode)
-- **Event System:** Pub/sub event bus (from OpenCode)
-- **Storage:** File-based key-value store to `~/.opencode/` (from OpenCode)
+  - **Primary:** Jujutsu (parallel workspace support)
+  - **Fallback:** Git
+- **Configuration:** TOML
 
 ### AI/ML Components
 
@@ -1517,8 +1350,7 @@ await eventLogger.logEvent(sessionId, "task_completed", antId, taskId, {
   - Tertiary: DeepSeek (cost-optimized alternative)
 
 - **Vector Database:**
-  - Development: FAISS (local, fast)
-  - Production: Pinecone or Chroma (cloud, scalable)
+  - Qdrant (per-project collections)
 
 - **Embeddings:**
   - OpenAI text-embedding-3-large
@@ -1526,43 +1358,34 @@ await eventLogger.logEvent(sessionId, "task_completed", antId, taskId, {
 
 ### Infrastructure
 
+See [COORDINATION_LAYER_RUST.md](COORDINATION_LAYER_RUST.md) for detailed infrastructure design.
+
 **Phase 1 (MVP):**
 
-> [!NOTE]
-> Phase 1 infrastructure was updated to use PostgreSQL from the start for coordination.
-> See [COORDINATION_LAYER.md](COORDINATION_LAYER.md) for the authoritative design.
->
-> <!-- @skip-context: outdated phase description - PostgreSQL is now Phase 1 -->
-
-- **Task Coordination:** PostgreSQL with LISTEN/NOTIFY (coordination/coordinator.ts)
+- **Task Coordination:** PostgreSQL with LISTEN/NOTIFY
 - **Observability:** PostgreSQL logs table + structured logging
-- **Monitoring:** TUI dashboard (extended OpenTUI components)
-- **Development:** Docker Compose (PostgreSQL only, no Redis yet)
-- **LEGOMem:** FAISS (local vector DB, no server needed)
+- **Monitoring:** CLI status commands
+- **Development:** Docker Compose (PostgreSQL + Qdrant)
+- **LEGOMem:** Qdrant (local Docker instance)
 
-**Phase 2 (Scale - Production):**
+**Phase 2 (Scale):**
 
-- **Task Coordination:** PostgreSQL 16 (already in place from Phase 1)
-- **Work Queue:** Bull/BullMQ (Redis-backed job queue) - for background jobs beyond task coordination
-- **Caching:** Redis (semantic cache layer, queue backend)
+- **Caching:** Redis (semantic cache layer)
 - **Monitoring:**
-  - OpenTUI multi-agent dashboard
-  - Bull Board (queue visualization web UI)
+  - CLI dashboard
   - Prometheus + Grafana (metrics)
   - pgAdmin (database monitoring)
-- **Logging:** Structured logging with correlation IDs per session
-- **Local Development:** Docker Compose (PostgreSQL + Redis + Bull Board)
 - **Production:**
   - Database: AWS RDS PostgreSQL or managed PostgreSQL
-  - Cache/Queue: AWS ElastiCache Redis or managed Redis
-- **LEGOMem:** Pinecone or Chroma (cloud vector DB)
+  - Vector DB: Qdrant Cloud
+  - Cache: AWS ElastiCache Redis
 
 ### Development Tools
 
-- **Testing:** Vitest
-- **Linting:** Biome (from hackathon)
-- **Type Checking:** TypeScript strict mode
-- **Security:** npm audit, Snyk
+- **Testing:** cargo test
+- **Linting:** clippy
+- **Formatting:** rustfmt
+- **Security:** cargo audit
 
 ---
 
@@ -1579,25 +1402,19 @@ await eventLogger.logEvent(sessionId, "task_completed", antId, taskId, {
 
 **Proven:** Hackathon project successfully used jj for 4+ parallel agents
 
-### 2. Why Fork OpenCode?
+### 2. Why Rust from Scratch?
 
 **Reasoning:**
 
-- Claude Code (ideal) is closed-source, can't extend
-- OpenCode is open-source, well-architected, production-ready
-- Already has 90% of infrastructure we need:
-  - Complete TUI framework (OpenTUI/SolidJS)
-  - Session management and agent system
-  - 25+ tools (file ops, bash, search)
-  - Event bus and storage
-  - Logging and configuration
-- Can integrate our research (RLM, Routine, LEGOMem) as extensions
-- Forking allows us to:
-  - Add pluggable VCS (Jujutsu support)
-  - Extend agent types (queen, ant-operator, ant-review, ant-integration)
-  - Add parent/child session relationships
-  - Build on proven foundation rather than from scratch
-- Faster time to market vs building standalone system
+- **Performance:** Rust's memory efficiency allows 1000s of concurrent workers
+- **Type safety:** Catch coordination bugs at compile time
+- **Ecosystem:** Excellent async (Tokio), HTTP (Axum), DB (sqlx) crates
+- **Agent frameworks:** Rig provides solid foundation for LLM agents
+- **Multi-provider:** rust-genai abstracts OpenAI, Anthropic, etc.
+- **Headless architecture:** Service-first enables multiple clients (CLI, VSCode, TUI)
+- **No legacy constraints:** Build exactly what we need without adapting existing code
+
+See [HEADLESS_ARCHITECTURE.md](HEADLESS_ARCHITECTURE.md) for the full rationale.
 
 ### 3. Why Separate Review Agents?
 
@@ -1619,30 +1436,18 @@ await eventLogger.logEvent(sessionId, "task_completed", antId, taskId, {
 - Scalable (millions of patterns)
 - Enables learned capabilities system
 
-### 5. Why In-Memory First (Phase 1) then Database (Phase 2)?
+### 5. Why PostgreSQL from the Start?
 
-**Phase 1 Benefits (In-Memory):**
+**Reasoning:**
 
-- Zero external dependencies (just Bun + Jujutsu)
-- Fast iteration and testing
-- Simple debugging (all state in one process)
-- Good enough for 10-50 concurrent ants
-- Perfect for MVP and research validation
+- Atomic operations essential for coordination at any scale
+- LISTEN/NOTIFY provides efficient event delivery
+- Scales from 10 to 1000+ concurrent ants
+- Single database per project keeps things simple
+- Docker Compose makes setup trivial
+- sqlx provides compile-time query verification
 
-**Phase 2 Migration (PostgreSQL + Bull):**
-
-- Necessary beyond 50 concurrent ants
-- Atomic operations critical at scale
-- Better observability and monitoring
-- State persists across restarts
-- Proven technology for high concurrency
-
-**Why Not Database First?**
-
-- Adds complexity early
-- Requires Docker/PostgreSQL/Redis setup
-- Slower iteration during research phase
-- YAGNI (You Aren't Gonna Need It) - start simple
+See [COORDINATION_LAYER_RUST.md](COORDINATION_LAYER_RUST.md) for the database design.
 
 ### 6. Why Prompt Compression?
 
@@ -1701,32 +1506,10 @@ await eventLogger.logEvent(sessionId, "task_completed", antId, taskId, {
 
 ## Next Steps
 
-See [`PRD.md`](PRD.md) for product roadmap and [`IMPLEMENTATION_PHASE_1.md`](IMPLEMENTATION_PHASE_1.md) for detailed implementation plan.
+See [`PRD.md`](PRD.md) for product roadmap.
 
-**Immediate priorities:**
+See [`HEADLESS_ARCHITECTURE.md`](HEADLESS_ARCHITECTURE.md) for implementation phases.
 
-1. **Week 1: Foundation**
-   - Fork OpenCode repository
-   - Implement pluggable VCS architecture (vcs/vcs.ts, vcs/jujutsu.ts)
-   - Add Jujutsu workspace management
-   - Test basic workspace isolation
+See [`COORDINATION_LAYER_RUST.md`](COORDINATION_LAYER_RUST.md) for coordination layer implementation.
 
-2. **Week 2: Agent System**
-   - Define queen agent in agent/agent.ts
-   - Define ant agent types (ant-operator, ant-review, ant-integration)
-   - Implement spawn_ant tool (tool/spawn-ant.ts)
-   - Add parent/child session relationships (session/session.ts)
-
-3. **Week 3: Task Coordination**
-   - Implement RLM decomposition (task/decompose.ts)
-   - Build in-memory task coordinator (task/coordinator.ts)
-   - Integrate with spawn_ant tool
-   - Test with 10-20 concurrent ants
-
-4. **Week 4: Integration & Testing**
-   - Extend OpenTUI with multi-agent dashboard
-   - Add real-time session monitoring
-   - Integration tests with sample projects
-   - Measure: speed, cost, quality vs baseline
-
-**Phase 1 MVP target:** Demonstrate 10× speedup with 10-20 concurrent ants, acceptable quality and cost.
+**Phase 1 MVP target:** Headless service with REST API, 100 concurrent workers via CLI.

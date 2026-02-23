@@ -1,83 +1,63 @@
 # Ant Army - Phase 1 Implementation Plan
 
-**Timeline:** Weeks 1-4
-**Goal:** Core foundation with basic multi-agent orchestration built into OpenCode
-**Success Criteria:** Successfully decompose and execute simple tasks with 10-20 parallel ants using OpenCode child sessions
+> [!IMPORTANT]
+> **Architecture Change (February 2026):** This document contains outdated references to OpenCode. The current implementation approach is a **Rust headless service** built from scratch. See [HEADLESS_ARCHITECTURE.md](HEADLESS_ARCHITECTURE.md) and [COORDINATION_LAYER_RUST.md](COORDINATION_LAYER_RUST.md) for the current plan.
 
-**Architecture:** Fork OpenCode, add queen agent + ant agent types, extend with new modules for task decomposition, LEGOMem, and Jujutsu support
+**Timeline:** 2-3 weeks (Phase 1: Headless Service)
+**Goal:** Core Rust service with REST API and PostgreSQL coordination
+**Success Criteria:** Can spawn 100 workers via API/CLI
 
----
-
-## Current Progress
-
-| Week  | Task                                      | Status          | Notes                                                                               |
-| ----- | ----------------------------------------- | --------------- | ----------------------------------------------------------------------------------- |
-| 1     | 1.1 Repository Setup & Architecture Study | ✅ Complete     | Fork configured, docs created                                                       |
-| 1     | 1.2 Pluggable VCS Architecture            | ✅ Complete     | `vcs/` module with Git + Jujutsu providers                                          |
-| 1     | 1.3 Session Extension (parent/child)      | ✅ Complete     | Already exists in OpenCode upstream                                                 |
-| 2     | 2.1 spawn_ant Tool                        | ✅ Complete     | Tool + tests created                                                                |
-| **—** | **2.0 Coordination Layer**                | **🔴 PRIORITY** | **PostgreSQL + observability — see [COORDINATION_LAYER.md](COORDINATION_LAYER.md)** |
-| 2     | 2.2 LEGOMem Pattern Storage               | ❌ Not started  | Deferred                                                                            |
-| 2     | 2.3 Model Routing                         | ❌ Not started  | Deferred                                                                            |
-| 3     | 3.1 Agent Definition & Configuration      | ✅ Complete     | queen, ant-operator, ant-review, ant-merge                                          |
-| 3     | 3.2 Operator Ant Implementation           | ❌ Not started  | Blocked on 2.0                                                                      |
-| 3     | 3.3 Review Ant Implementation             | ❌ Not started  | Blocked on 2.0                                                                      |
-| 3     | 3.4 Integration Ant Implementation        | ❌ Not started  | Blocked on 2.0                                                                      |
-| 4     | 4.1 Queen Orchestration Flow              | 🟡 In Progress  | Blocked on 2.0 for proper testing                                                   |
-| 4     | 4.2 TUI Dashboard Extension               | ❌ Not started  | —                                                                                   |
-| 4     | 4.3 Integration Testing                   | ❌ Not started  | —                                                                                   |
-
-**Next Up:** Task 2.0 - Coordination Layer (PostgreSQL database for task state and observability)
-
-### Why Coordination Layer is Priority
-
-Without a shared datastore, ants cannot communicate reliably:
-
-- **In-memory coordination** dies when queen session ends
-- **File-based coordination** (TODO.md) creates merge conflicts at scale
-- **LLM context as state** is expensive and unreliable
-
-The coordination layer provides:
-
-1. **Atomic task operations** (claim, complete, fail)
-2. **Dependency tracking** (DAG-based execution ordering)
-3. **Jujutsu commit/bookmark tracking** (prevents GC of unmerged work)
-4. **Observability** (log table for debugging test runs)
-
-**Full implementation plan:** [COORDINATION_LAYER.md](COORDINATION_LAYER.md)
+**Architecture:** Rust headless service with Axum API, PostgreSQL coordination, Rig + rust-genai for LLM
 
 ---
 
-## Overview: OpenCode Fork Integration Approach
+## Current Implementation Plan
 
-Ant Army is built by **forking and extending OpenCode v1.1.32**, not as a separate system. We leverage:
+See [HEADLESS_ARCHITECTURE.md](HEADLESS_ARCHITECTURE.md) for the authoritative implementation phases:
 
-- ✅ **OpenCode's TUI** (OpenTUI/SolidJS) - extend with multi-agent dashboard
-- ✅ **OpenCode's session management** - add parent/child session relationships
-- ✅ **OpenCode's agent system** - add queen, ant-operator, ant-review, ant-integration
-- ✅ **OpenCode's tool system** - add spawn_ant, decompose_task tools
-- ✅ **OpenCode's event bus** - use for session coordination
-- ✅ **OpenCode's storage** - store task state and LEGOMem patterns
+**Phase 1: Headless Service (2-3 weeks)**
+- Axum API server with REST endpoints
+- Rig + rust-genai integration
+- PostgreSQL coordination layer
+- Task decomposition logic
+- Worker spawning (Tokio tasks)
+- Cross-provider routing
+- SSE streaming for task events
+- Simple CLI client (`ant-army` command)
 
-**New modules we add:**
+**Phase 2A: VSCode Extension (2-3 weeks)**
+- Native IDE integration
+
+**Phase 2B: Fork Codex TUI (3-4 weeks, parallel)**
+- Standalone terminal experience
+
+---
+
+## Rust Crate Organization
 
 ```
-/packages/opencode/src/
-├─ vcs/              (NEW) Pluggable VCS: abstract interface + Jujutsu impl
-├─ task/             (NEW) Decomposition & coordination
-├─ memory/           (NEW) LEGOMem pattern storage
-├─ routing/          (NEW) Intelligent model selection
-├─ agent/            (EXTEND) Add queen, ant-operator, ant-review agents
-├─ session/          (EXTEND) Add parent/child session relationships
-├─ tool/             (EXTEND) Add spawn_ant, decompose_task tools
-└─ tui/component/    (EXTEND) Add multi-agent dashboard components
+crates/
+├─ ant-army-core/       # Core types, coordination, agent definitions
+│   ├─ agent/           # Queen, ant-operator, ant-review, ant-integration
+│   ├─ coordination/    # PostgreSQL-based task coordination
+│   ├─ vcs/             # Abstract VCS interface + Jujutsu implementation
+│   ├─ task/            # Decomposition and DAG management
+│   ├─ memory/          # LEGOMem pattern storage (Qdrant)
+│   └─ routing/         # Intelligent model selection
+├─ ant-army-api/        # Axum REST/WebSocket API server
+├─ ant-army-cli/        # CLI client
+└─ ant-army-llm/        # Rig + rust-genai integration
 ```
 
-**Phase 1 Infrastructure:**
+**See [COORDINATION_LAYER_RUST.md](COORDINATION_LAYER_RUST.md) for detailed Rust implementation plan.**
 
-- **PostgreSQL coordination:** Task state in database for atomic operations and observability (see [COORDINATION_LAYER.md](COORDINATION_LAYER.md))
-- **10-20 ants:** Conservative concurrency for initial testing
-- **Basic TUI:** Extend OpenTUI with simple multi-agent view
+---
+
+## Phase 1 Infrastructure
+
+- **PostgreSQL coordination:** Task state in database for atomic operations (see [COORDINATION_LAYER_RUST.md](COORDINATION_LAYER_RUST.md))
+- **100 concurrent workers:** Target for Phase 1 MVP
+- **CLI client:** Dogfood via command line immediately
 - **Jujutsu primary:** Each ant gets a named workspace, commits tracked by ID, bookmarks prevent GC
 
 ---

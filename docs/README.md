@@ -1,12 +1,46 @@
 # Ant Army - Documentation Index
 
-**Last Updated:** January 23, 2026
+**Last Updated:** February 23, 2026
 
 This index provides quick navigation to all project documentation and helps understand the document hierarchy.
+
+> [!IMPORTANT]
+> **Architecture Change (February 2026):** Ant Army is being built **from scratch in Rust** as a headless service, not as an OpenCode fork. See [HEADLESS_ARCHITECTURE.md](HEADLESS_ARCHITECTURE.md) for the current approach.
 
 ---
 
 ## 📋 Core Planning Documents
+
+### [HEADLESS_ARCHITECTURE.md](HEADLESS_ARCHITECTURE.md) - **Current Implementation Approach** ⭐
+
+**Purpose:** Authoritative implementation architecture (Rust headless service)
+**Use When:** Understanding the current build approach and phases
+**Key Sections:**
+
+- Architecture Overview (Rust service with REST/WebSocket API)
+- API Design (endpoints, SSE streaming)
+- Development Phases (Phase 1: Headless, Phase 2: VSCode/TUI)
+- Technology Stack (Rust, Axum, Tokio, PostgreSQL, Rig)
+
+**Size:** ~200 lines | **Audience:** Engineers, architects
+
+---
+
+### [COORDINATION_LAYER_RUST.md](COORDINATION_LAYER_RUST.md) - **Coordination Layer (Rust)** ⭐
+
+**Purpose:** PostgreSQL-based task coordination implementation in Rust
+**Use When:** Implementing or debugging the ant coordination system
+**Key Sections:**
+
+- Per-Project Database Isolation
+- Setup Flow (`ant-army init`)
+- Database Schema (ants, tasks, task_dependencies, logs)
+- Coordinator Implementation (sqlx, LISTEN/NOTIFY)
+- Project Management Commands
+
+**Size:** ~1100 lines | **Audience:** Development team
+
+---
 
 ### [PRD.md](PRD.md) - Product Requirements Document
 
@@ -15,12 +49,10 @@ This index provides quick navigation to all project documentation and helps unde
 **Key Sections:**
 
 - Executive Summary (value proposition, vision)
-- 9 Key Techniques (orchestration, quality, cost optimization)
+- Key Techniques (orchestration, quality, cost optimization)
 - Learned Capability System
 - Product Vision & UX Examples
-- Implementation Roadmap (5 phases, weeks 1-20)
 - Target Users & Pricing Model
-- Scratchpad (recent work tracking)
 
 **Size:** ~800 lines | **Audience:** All stakeholders
 
@@ -32,51 +64,33 @@ This index provides quick navigation to all project documentation and helps unde
 **Use When:** Need technical specifications, system design, or integration details
 **Key Sections:**
 
-- Foundation (hackathon project base)
-- Ant Army Enhancements (decomposition, capabilities, quality, scale)
-- 7-Layer Architecture (detailed breakdown)
-- Ant Types & Workflows (Developer, Review, Integration)
+- Foundation (Rust Headless Service)
+- Core Capabilities (Agent Types, LEGOMem, Quality, Routing)
+- Detailed Architecture (Crate Organization, Layers)
 - Scaling Strategy (10 → 100 → 1000+ ants)
 - Technology Stack & Cost Estimates
-- Open Questions & Considerations
 
-**Size:** ~122K tokens | **Audience:** Engineers, architects
+**Size:** ~1500 lines | **Audience:** Engineers, architects
 
 ---
 
 ### [IMPLEMENTATION_PHASE_1.md](IMPLEMENTATION_PHASE_1.md) - Phase 1 Implementation Plan
 
-**Purpose:** Detailed execution plan for Weeks 1-4 (MVP)
-**Use When:** Starting implementation or tracking Phase 1 progress
-**Key Sections:**
-
-- Week 1: Foundation & Infrastructure
-- Week 2: Core Orchestration
-- Week 3: Agent Implementation
-- Week 4: Routing & Integration
-- Completion Checklist (functionality, quality, documentation, metrics)
-- Risks & Mitigations
-- Success Metrics
-- Dependencies & Timeline
+**Purpose:** Implementation plan overview (now superseded by HEADLESS_ARCHITECTURE.md)
+**Use When:** Historical reference for original planning
+**Note:** Contains outdated OpenCode references. See HEADLESS_ARCHITECTURE.md for current plan.
 
 **Size:** ~600 lines | **Audience:** Development team
 
 ---
 
-### [COORDINATION_LAYER.md](COORDINATION_LAYER.md) - Coordination Infrastructure
+### [COORDINATION_LAYER.md](COORDINATION_LAYER.md) - Coordination Infrastructure (TypeScript - Historical)
 
-**Purpose:** PostgreSQL-based task coordination and observability
-**Use When:** Implementing or debugging the ant coordination system
-**Key Sections:**
+**Purpose:** Original TypeScript coordination design (now superseded)
+**Use When:** Historical reference only
+**Note:** See COORDINATION_LAYER_RUST.md for current Rust implementation.
 
-- Data Model (tasks, dependencies, logs tables)
-- Ant Workspace Model (Jujutsu commits, bookmarks)
-- Coordinator Service (TypeScript implementation)
-- Infrastructure Setup (Docker Compose)
-- Observability Queries (debugging SQL)
-- Testing Strategy
-
-**Size:** ~400 lines | **Audience:** Development team
+**Size:** ~400 lines | **Audience:** Historical reference
 
 ---
 

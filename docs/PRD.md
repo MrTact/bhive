@@ -476,328 +476,178 @@ _Last ~dozen conversation topics for context continuity:_
 
 ---
 
-## Foundation: Building on OpenCode
+## Foundation: Rust Headless Service
 
-### OpenCode as Infrastructure Layer
+> [!IMPORTANT]
+> **Architecture Change (February 2026):** Ant Army is built **from scratch in Rust** as a headless service with REST/WebSocket API. See [HEADLESS_ARCHITECTURE.md](HEADLESS_ARCHITECTURE.md) for details.
 
-Ant Army is built as an orchestration layer on top of **OpenCode**, a proven open-source AI coding agent with comprehensive infrastructure already in place.
+### Technology Stack
 
-**OpenCode Repository:** `/Users/tkeating/git-repos/opencode`
-**Version:** 1.1.32
-**Status:** Production-ready, actively maintained
+**Core:**
+- **Language:** Rust
+- **Async Runtime:** Tokio
+- **HTTP Framework:** Axum
+- **Database:** PostgreSQL (coordination layer)
+- **Agent Framework:** Rig
+- **Multi-Provider LLM:** rust-genai
 
-### What OpenCode Provides (Already Built)
+**Clients:**
+- CLI (Rust, clap)
+- VSCode Extension (TypeScript) - Phase 2
+- TUI (Rust, fork of codex-rs/tui) - Phase 2
 
-#### ✅ **Complete TUI Framework**
+### Core Modules
 
-- OpenTUI (SolidJS-based terminal UI)
-- Status displays, dialogs, session lists
-- Keyboard shortcuts and interaction
-- Theme support and customization
-
-#### ✅ **Session Management**
-
-- Session creation, forking, archiving
-- Persistence to `~/.opencode/`
-- Event-driven updates
-- Share/export capabilities
-
-#### ✅ **Agent System**
-
-- Configurable agents (build, plan, general/subagent)
-- Permission-based access control
-- Model override per agent
-- Temperature and parameter control
-
-#### ✅ **Tool System (25+ Tools)**
-
-- File operations: edit, read, write, glob, ls
-- Search: grep, codesearch
-- Execution: bash (with rate limiting)
-- Development: lsp, question, task
-- Already implements our core primitives
-
-#### ✅ **Event Bus Architecture**
-
-- Pub/sub system for cross-component communication
-- Strongly-typed events with Zod schemas
-- Session, VCS, FileWatcher events
-
-#### ✅ **Storage & Logging**
-
-- File-based key-value store
-- Structured logging with service tags
-- Log files to `~/.opencode/logs/`
-
-#### ✅ **Git Worktree Support**
-
-- Creates isolated git worktrees for parallel work
-- Auto-generated branch names
-- Workspace cleanup and management
-
-#### ✅ **Configuration System**
-
-- JSONC configuration files
-- Precedence: Remote → Global → Project
-- Agent definitions via config
-- Plugin and skill system
-
-#### ✅ **MCP Integration**
-
-- Model Context Protocol support
-- OAuth integration
-- External tool integration
-
-### What Ant Army Adds (Extensions to OpenCode)
-
-#### 1. **New Agent Types**
-
-**File:** `/packages/opencode/src/agent/agent.ts`
+#### 1. **Agent Types**
 
 - **queen** - Primary coordinator agent (decomposes, spawns, aggregates)
-- **ant-operator** - Subagent for focused code tasks
-- **ant-review** - Subagent for code review with clean context
-- **ant-integration** - Subagent for merging results
+- **ant-operator** - Worker agent for focused code tasks
+- **ant-review** - Worker agent for code review with clean context
+- **ant-integration** - Worker agent for merging results
 
-#### 2. **Task Decomposition Module** (NEW)
+#### 2. **Task Coordination**
 
-**File:** `/packages/opencode/src/task/decompose.ts`
+See [COORDINATION_LAYER_RUST.md](COORDINATION_LAYER_RUST.md) for complete implementation.
 
-- RLM-inspired hierarchical decomposition
-- Breaks complex tasks into 100+ focused subtasks
-- Dependency graph generation
-- Execution wave calculation
-
-#### 3. **Task Coordination System** (NEW)
-
-**File:** `/packages/opencode/src/coordination/coordinator.ts`
-
-> [!NOTE]
-> **SUPERSEDED:** This section described the original in-memory approach. The current design uses PostgreSQL with LISTEN/NOTIFY for push-based notifications. See [COORDINATION_LAYER.md](COORDINATION_LAYER.md) for the authoritative implementation.
->
-> <!-- @skip-context: outdated in-memory coordination design -->
-
-- ~~In-memory task queue (Phase 1)~~ → PostgreSQL coordination layer
-- Atomic task claim operations (via database transactions)
+- PostgreSQL-backed task queue
+- LISTEN/NOTIFY for push-based events
+- Atomic task claim operations
 - Dependency tracking (DAG in `task_dependencies` table)
 - Result aggregation
-- Push-based notifications via PostgreSQL LISTEN/NOTIFY
 
-#### 4. **LEGOMem Pattern Storage** (NEW)
+#### 3. **LEGOMem Pattern Storage**
 
-**File:** `/packages/opencode/src/memory/legomem.ts`
-
-- Vector database for successful patterns (FAISS initially)
+- Vector database (Qdrant) for successful patterns
 - Semantic pattern matching
 - Template instantiation for learned capabilities
-- Stores to `~/.opencode/ant-army/patterns/`
+- Per-project collections
 
-#### 5. **Intelligent Model Routing** (NEW)
-
-**File:** `/packages/opencode/src/routing/model-router.ts`
+#### 4. **Intelligent Model Routing**
 
 - Per-subtask model selection
 - Cost optimization heuristics
 - Quality tier routing (mini vs opus for review)
 - Argus output length prediction (Phase 2)
 
-#### 6. **Pluggable VCS Architecture** (EXTEND)
+#### 5. **VCS Abstraction**
 
-**Files:** `/packages/opencode/src/vcs/vcs.ts` (interface)
-`/packages/opencode/src/vcs/jujutsu.ts` (NEW implementation)
-
-- Abstract VCS interface
+- Pluggable VCS trait
 - Jujutsu implementation (workspace add/remove, commit, diff)
-- Existing Git implementation continues to work
+- Git fallback implementation
 - Auto-detect and use appropriate VCS
 
-#### 7. **Parent/Child Session Support** (EXTEND)
-
-**File:** `/packages/opencode/src/session/session.ts`
-
-- Sessions can spawn child sessions
-- Parent tracks child progress
-- Isolated workspaces per child
-- Result aggregation from children
-
-#### 8. **Multi-Agent Dashboard** (EXTEND)
-
-**Files:** `/packages/opencode/src/cli/cmd/tui/component/ant-army/`
-
-- New TUI components for multi-agent view
-- Task dependency graph visualization
-- Live ant status (all active ants visible)
-- Progress tracking across all subtasks
-- Cost and time estimation
-
-#### 9. **Queen-Specific Tools** (NEW)
-
-**Files:** `/packages/opencode/src/tool/spawn-ant.ts`
-`/packages/opencode/src/tool/decompose.ts`
-`/packages/opencode/src/tool/aggregate.ts`
-
-- `spawn_ant` - Create child session with ant agent
-- `decompose` - Break task into subtasks
-- `aggregate` - Merge results from ants
-
-#### 10. **Prompt Compression** (NEW)
-
-**File:** `/packages/opencode/src/compression/compress.ts`
+#### 6. **Prompt Compression**
 
 - Extractive filtering
 - Summarization option
 - 70-80% token reduction
 - Applied before passing context to ants
 
-### Integration Architecture: One Process, Multiple Agents
+### Integration Architecture: Headless Service
 
 ```
 ┌──────────────────────────────────────────────────────────┐
-│                 OpenCode (Forked & Enhanced)             │
+│              Ant Army Service (Rust)                     │
 │                                                          │
 │  ┌────────────────────────────────────────────────────┐ │
-│  │         Session (User Task)                        │ │
-│  │                                                    │ │
-│  │  ┌──────────────────────────────────────────────┐ │ │
-│  │  │     Queen Agent (Coordinator)                │ │ │
-│  │  │  • Decomposes task (RLM module)              │ │ │
-│  │  │  • Queries LEGOMem for patterns              │ │ │
-│  │  │  • Routes models intelligently               │ │ │
-│  │  │  • Spawns ant subagents (child sessions)     │ │ │
-│  │  │  • Aggregates results                        │ │ │
-│  │  └────────┬─────────────────────────────────────┘ │ │
-│  │           │                                        │ │
-│  │  ┌────────┴────────┬─────────────┐                │ │
-│  │  │                 │             │                │ │
-│  │  ▼                 ▼             ▼                │ │
-│  │ Ant #1          Ant #2        Ant #N             │ │
-│  │ (Child         (Child         (Child             │ │
-│  │ Session)       Session)       Session)           │ │
-│  │ Type: dev      Type: review   Type: dev          │ │
-│  │ Workspace: 1   Workspace: 2   Workspace: N       │ │
-│  └────────────────────────────────────────────────────┘ │
+│  │     Queen Agent (Coordinator)                      │ │
+│  │  • Decomposes task (RLM-inspired)                  │ │
+│  │  • Queries LEGOMem for patterns                    │ │
+│  │  • Routes models intelligently                     │ │
+│  │  • Spawns ant workers (Tokio tasks)                │ │
+│  │  • Aggregates results                              │ │
+│  └────────┬───────────────────────────────────────────┘ │
+│           │                                              │
+│  ┌────────┴────────┬─────────────┐                      │
+│  ▼                 ▼             ▼                      │
+│ Ant #1          Ant #2        Ant #N                    │
+│ (Tokio Task)   (Tokio Task)  (Tokio Task)               │
+│ Type: operator Type: review   Type: operator            │
+│ Workspace: 1   Workspace: 2   Workspace: N              │
 │                                                          │
-│  New/Enhanced Modules:                                   │
-│  ├─ agent/      (+ queen, ant-dev, ant-review)          │
-│  ├─ task/       (+ decomposition engine)                │
-│  ├─ memory/     (+ LEGOMem pattern storage)             │
-│  ├─ routing/    (+ intelligent model selection)         │
-│  ├─ vcs/        (+ pluggable VCS, Jujutsu impl)         │
-│  ├─ session/    (+ parent/child session support)        │
-│  └─ tui/        (+ multi-agent dashboard)               │
-│                                                          │
+│  Crates:                                                 │
+│  ├─ ant-army-core/    (agents, coordination, vcs)       │
+│  ├─ ant-army-api/     (Axum REST/WebSocket)             │
+│  ├─ ant-army-cli/     (CLI client)                      │
+│  └─ ant-army-llm/     (Rig + rust-genai)                │
 └──────────────────────────────────────────────────────────┘
+               │
+               │ REST/WebSocket API
+               │
+    ┌──────────┼──────────┬─────────────┐
+    ▼          ▼          ▼             ▼
+  CLI      VSCode     TUI          Claude.ai
+           Extension  (future)     MCP (future)
 ```
 
 **Key Points:**
 
-- **One OpenCode instance** - not external orchestrator
-- **Queen agent** - new primary agent type that coordinates
-- **Ant agents** - subagent types spawned by queen
-- **Child sessions** - each ant runs in own session with isolated workspace
-- **All in-process** - no separate coordination database or external processes
-- **Extends OpenCode** - leverages existing session/tool/event infrastructure
+- **Headless service** - REST/WebSocket API enables multiple clients
+- **Queen agent** - coordinator that decomposes and spawns workers
+- **Ant workers** - Tokio tasks with isolated Jujutsu workspaces
+- **PostgreSQL coordination** - atomic operations, LISTEN/NOTIFY for events
+- **Built from scratch** - no legacy constraints, optimal for our use case
 
 ### Why This Approach
 
-**✅ Leverage Proven Infrastructure:**
+**✅ Performance & Efficiency:**
 
-- Don't rebuild TUI, session management, tool system
-- Battle-tested code from OpenCode
-- Active development and maintenance
+- Rust memory efficiency enables 1000s of concurrent workers
+- Async Tokio runtime for efficient I/O
+- Compile-time safety catches bugs early
 
-**✅ Faster Development:**
+**✅ Flexibility:**
 
-- Focus on unique Ant Army capabilities
-- Less code to write and maintain
-- Proven UX patterns
+- Headless service enables multiple clients (CLI, VSCode, TUI)
+- REST/WebSocket API for easy integration
+- No UI constraints on core development
 
-**✅ Compatibility:**
+**✅ Scalability:**
 
-- Works with existing OpenCode installations
-- Users familiar with OpenCode TUI
-- Can use OpenCode skills and MCP servers
+- PostgreSQL coordination proven at scale
+- Per-project database isolation
+- Ready for distributed workers (future)
 
 **✅ Extensibility:**
 
-- OpenCode's plugin system
-- Configuration-driven agent definitions
-- Easy to add new ant types
+- Clean crate boundaries
+- Pluggable VCS layer
+- Easy to add new agent types
 
 ### Configuration Example
 
-```jsonc
-// .opencode/opencode.jsonc
-{
-  // Standard OpenCode settings
-  "provider": "openai",
-  "model": "gpt-4o",
+```toml
+# .config/ant-army/config.toml
+[providers]
+default = "openai"
+openai_model = "gpt-4o"
 
-  // Ant Army configuration (extends OpenCode)
-  "antArmy": {
-    "enabled": true,
+[decomposition]
+max_subtasks_per_task = 100
+target_tokens_per_subtask = 500
+strategy = "rlm"
 
-    "decomposition": {
-      "maxSubtasksPerTask": 100,
-      "targetTokensPerSubtask": 500,
-      "strategy": "rlm",
-    },
+[execution]
+max_concurrent_ants = 100
+default_ant_type = "operator"
 
-    "execution": {
-      "maxConcurrentAnts": 10, // Phase 1: conservative
-      "defaultAntType": "developer",
-    },
+[quality]
+default_tier = 2  # 1=self, 2=review, 3=cross-provider, 4=+tools
+review_model = "gpt-4o"
+cross_provider_model = "claude-opus-4"
 
-    "quality": {
-      "defaultTier": 2, // 1=self, 2=review, 3=cross-provider, 4=+tools
-      "reviewModelOverride": "gpt-4o",
-      "crossProviderModel": "claude-opus-4",
-    },
+[memory]
+enabled = true
+similarity_threshold = 0.85
 
-    "memory": {
-      "enabled": true,
-      "storagePath": "~/.opencode/ant-army/patterns",
-      "similarityThreshold": 0.85,
-    },
-
-    "vcs": {
-      "preferred": "jujutsu", // or "git"
-      "workspacePrefix": "ant",
-    },
-  },
-
-  // Agent definitions (OpenCode standard format)
-  "agent": [
-    {
-      "name": "queen",
-      "mode": "primary",
-      "description": "Ant Army coordinator that decomposes and delegates",
-      "permission": { "*": "allow" },
-      "tools": ["spawn_ant", "decompose", "aggregate"],
-    },
-    {
-      "name": "ant-operator",
-      "mode": "subagent",
-      "description": "Executes focused development subtasks",
-      "permission": { "*": "allow" },
-      "maxSteps": 10,
-    },
-    {
-      "name": "ant-review",
-      "mode": "subagent",
-      "description": "Reviews code with clean context",
-      "permission": { "edit": "deny", "write": "deny" },
-      "maxSteps": 5,
-    },
-  ],
-
-  "instructions": [".opencode/ant-army-guidelines.md"],
-}
+[vcs]
+preferred = "jujutsu"  # or "git"
+workspace_prefix = "ant"
 ```
 
-**See [`notes/opencode-integration-analysis.md`](notes/opencode-integration-analysis.md) for initial analysis of OpenCode capabilities.**
+**See [`HEADLESS_ARCHITECTURE.md`](HEADLESS_ARCHITECTURE.md) for the headless service design.**
 
-**See [`notes/opencode-fork-integration-strategy.md`](notes/opencode-fork-integration-strategy.md) for detailed integration approach.**
+**See [`COORDINATION_LAYER_RUST.md`](COORDINATION_LAYER_RUST.md) for coordination layer implementation.**
 
 **See [`ARCHITECTURE.md`](ARCHITECTURE.md) for complete technical architecture.**
 

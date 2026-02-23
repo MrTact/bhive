@@ -1,6 +1,6 @@
 # Coordination Layer - Rust Implementation Plan
 
-**Based on:** OpenCode/TypeScript implementation (commits `porqmuqu` through `snqrltqs`)
+**Status:** Authoritative design document for Ant Army coordination layer
 
 **Goal:** PostgreSQL-backed coordination for atomic task operations, ant lifecycle management, and cross-provider model routing.
 
