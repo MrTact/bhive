@@ -11,5 +11,11 @@ ant-army-core = { path = "../ant-army-core" }
 tokio = { workspace = true }
 anyhow = { workspace = true }
 tracing = { workspace = true }
+serde = { workspace = true }
+uuid = { workspace = true }
+chrono = { workspace = true }
+
+# Async trait support
+async-trait = "0.1"
 
 # TODO: Add rig-core and genai when implementing
