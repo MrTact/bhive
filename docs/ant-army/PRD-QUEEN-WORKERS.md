@@ -6,7 +6,7 @@
 
 ## Overview
 
-Implement the Queen agent as the central orchestrator that assigns tasks to worker ants. Queen runs as a background task in the API server, listens for new tasks via PostgreSQL LISTEN/NOTIFY, and spawns/manages a pool of worker processes.
+Implement the Queen agent as the central orchestrator that assigns tasks to worker ants. Queen runs as a background Tokio task in the API server, listens for new tasks via PostgreSQL LISTEN/NOTIFY, and spawns/manages a pool of worker Tokio tasks.
 
 ## Architecture
 
@@ -15,7 +15,7 @@ API receives task → Store in DB → NOTIFY event
                                       ↓
                     Queen (listening) → Assign task
                                       ↓
-                    Spawn/Reuse worker ant → Execute task
+                    Spawn Tokio task (worker) → Execute task
                                       ↓
                     Worker completes → Release ant to pool
 ```
@@ -23,7 +23,7 @@ API receives task → Store in DB → NOTIFY event
 **Key Decisions** (see ADR 002, 003):
 - Queen lives in API service process
 - Queen assigns tasks (push model, not worker pull)
-- Workers spawned as separate processes
+- Workers spawned as Tokio tasks (lightweight, in-process)
 
 ## Ant Naming System
 
@@ -102,7 +102,7 @@ impl Queen {
 }
 ```
 
-### 2. Worker Ant (`ant-army-worker`)
+### 2. Worker Ant (Tokio Task)
 
 **Responsibilities**:
 - Receive task assignment from Queen
@@ -111,13 +111,13 @@ impl Queen {
 - Call `release_ant(self.id, success)` when done
 
 **Lifecycle**:
-1. Queen spawns worker process: `ant-army-worker --ant-id <id> --task-id <id>`
-2. Worker reads task from database
+1. Queen spawns worker as Tokio task with `ant_id` and `task_id`
+2. Worker reads task from shared coordinator (in-process)
 3. Worker ensures workspace exists/is clean
 4. Worker executes task (LLM calls, file operations, etc.)
-5. Worker writes results to database
+5. Worker writes results via coordinator
 6. Worker calls `coordinator.complete_task()` and `coordinator.release_ant()`
-7. Process exits
+7. Task completes (no process overhead)
 
 ### 3. Ant Pool Management
 
@@ -144,16 +144,16 @@ struct AntPool {
 
 ### 4. Queen-Worker Communication
 
-**Protocol**: Process spawning with environment variables
-- Queen spawns: `ant-army-worker` binary
-- Pass via env vars: `ANT_ID`, `TASK_ID`, `DATABASE_URL`, `PROJECT_ID`
-- Worker reads from database, writes back results
-- No direct IPC needed (database is message bus)
+**Protocol**: In-process via shared state and channels
+- Queen spawns Tokio task with `Arc<Coordinator>` reference
+- Pass `ant_id` and `task_id` directly to worker function
+- Worker uses shared coordinator for all DB operations
+- Communication via `tokio::sync::mpsc` channels for events
 
-**Worker Exit Codes**:
-- `0` - Success, task completed
-- `1` - Task failed (expected failure)
-- `2+` - Worker error (unexpected)
+**Worker Result**:
+- `Ok(TaskResult)` - Success, task completed
+- `Err(WorkerError::TaskFailed)` - Task failed (expected failure)
+- `Err(WorkerError::*)` - Worker error (unexpected)
 
 ## Task Breakdown
 
@@ -168,7 +168,7 @@ struct AntPool {
 
 ### Phase 3: Workers & Communication
 - [ ] **#11** - Design Queen-to-Worker communication protocol
-- [ ] **#12** - Implement worker process spawning and management
+- [ ] **#12** - Implement worker Tokio task spawning and management
 
 ### Phase 4: Workspace Management
 - [ ] **#17** - Implement persistent workspace system
