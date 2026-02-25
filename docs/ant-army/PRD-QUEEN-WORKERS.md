@@ -158,13 +158,13 @@ struct AntPool {
 ## Task Breakdown
 
 ### Phase 1: Core Design & Structure
-- [ ] **#7** - Design Queen struct and core interfaces
-- [ ] **#8** - Implement Queen event loop with LISTEN/NOTIFY
-- [ ] **#9** - Implement task assignment and ant selection logic
+- [x] **#7** - Design Queen struct and core interfaces ✅ (queen.rs)
+- [x] **#8** - Implement Queen event loop with LISTEN/NOTIFY ✅ (queen.rs)
+- [ ] **#9** - Implement task assignment and ant selection logic (stubs exist)
 
 ### Phase 2: Ant Naming & Pool Management
 - [ ] **#16** - Create ant naming system with word lists
-- [ ] **#10** - Implement ant pool management with naming
+- [x] **#10** - Implement ant pool management ✅ (pool.rs - AntPool with activate/deactivate/reap)
 
 ### Phase 3: Workers & Communication
 - [ ] **#11** - Design Queen-to-Worker communication protocol

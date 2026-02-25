@@ -21,8 +21,8 @@ pub struct AntInfo {
     /// When the ant was last active
     pub last_active: Instant,
 
-    /// Process ID of worker (if spawned)
-    pub process_id: Option<u32>,
+    /// Tokio task handle ID (for tracking/cancellation)
+    pub task_handle_id: Option<u64>,
 }
 
 /// Ant pool state management
@@ -51,17 +51,17 @@ impl AntPool {
             current_task_id: None,
             workspace_path,
             last_active: Instant::now(),
-            process_id: None,
+            task_handle_id: None,
         };
         self.idle.insert(info.ant.id, info);
     }
 
     /// Move an ant from idle to active
-    pub fn activate(&mut self, ant_id: Uuid, task_id: Uuid, process_id: Option<u32>) -> bool {
+    pub fn activate(&mut self, ant_id: Uuid, task_id: Uuid, task_handle_id: Option<u64>) -> bool {
         if let Some(mut info) = self.idle.remove(&ant_id) {
             info.current_task_id = Some(task_id);
             info.last_active = Instant::now();
-            info.process_id = process_id;
+            info.task_handle_id = task_handle_id;
             self.assignments.insert(task_id, ant_id);
             self.active.insert(ant_id, info);
             true
@@ -78,7 +78,7 @@ impl AntPool {
             }
             info.current_task_id = None;
             info.last_active = Instant::now();
-            info.process_id = None;
+            info.task_handle_id = None;
             self.idle.insert(ant_id, info);
             true
         } else {
