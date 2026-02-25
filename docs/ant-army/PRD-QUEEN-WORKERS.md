@@ -163,7 +163,7 @@ struct AntPool {
 - [ ] **#9** - Implement task assignment and ant selection logic (stubs exist)
 
 ### Phase 2: Ant Naming & Pool Management
-- [ ] **#16** - Create ant naming system with word lists
+- [x] **#16** - Create ant naming system with word lists ✅ (naming.rs)
 - [x] **#10** - Implement ant pool management ✅ (pool.rs - AntPool with activate/deactivate/reap)
 
 ### Phase 3: Workers & Communication

@@ -30,6 +30,9 @@ pub enum Error {
     #[error("IO error: {0}")]
     IoError(#[from] std::io::Error),
 
+    #[error("Configuration error: {0}")]
+    Config(String),
+
     #[error("Worker spawn failed: {0}")]
     WorkerSpawnFailed(String),
 

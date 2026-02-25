@@ -10,6 +10,7 @@
 
 pub mod coordination;
 pub mod error;
+pub mod naming;
 pub mod project;
 pub mod provider;
 pub mod task;

@@ -21,6 +21,7 @@ futures = { workspace = true }
 # Configuration
 toml = "0.8"
 dirs = "5.0"
+rand = { workspace = true }
 
 # Agent framework (TODO: enable when ready)
 # rig-core = { workspace = true }
