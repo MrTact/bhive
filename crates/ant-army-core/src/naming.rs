@@ -3,14 +3,15 @@
 //! Generates unique ant names in the format `<adjective>-<noun>`
 //! (e.g., "swift-falcon", "clever-badger").
 //!
-//! Names are loaded from `~/.config/ant-army/names.toml` and can be
-//! customized by the user. A default template is copied on `ant-army init`.
+//! Names are loaded from `<project_root>/.config/ant-army/names.toml` and can be
+//! customized per-project. A default template is copied on `ant-army init`.
 
 use crate::Result;
 use rand::seq::SliceRandom;
 use serde::{Deserialize, Serialize};
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
+use std::sync::{Arc, RwLock};
 
 /// Default names.toml embedded in the binary
 pub const DEFAULT_NAMES_TOML: &str = include_str!("../resources/names.toml");
@@ -46,9 +47,9 @@ impl NamingConfig {
         Ok(config)
     }
 
-    /// Load from default location (~/.config/ant-army/names.toml) or use embedded defaults
-    pub fn load_or_default() -> Self {
-        let config_path = Self::default_path();
+    /// Load from a project's config directory, falling back to embedded defaults
+    pub fn load_for_project(project_root: &Path) -> Self {
+        let config_path = Self::project_path(project_root);
         
         if config_path.exists() {
             match Self::load_from_file(&config_path) {
@@ -57,43 +58,46 @@ impl NamingConfig {
                     return config;
                 }
                 Err(e) => {
-                    tracing::warn!("Failed to load naming config, using defaults: {}", e);
+                    tracing::warn!(
+                        "Failed to load naming config for project {:?}, using defaults: {}",
+                        project_root, e
+                    );
                 }
             }
+        } else {
+            tracing::debug!(
+                "No names.toml found at {:?}, using embedded defaults",
+                config_path
+            );
         }
         
         Self::default()
     }
 
-    /// Get the default config file path
-    pub fn default_path() -> PathBuf {
-        dirs::config_dir()
-            .unwrap_or_else(|| PathBuf::from("."))
+    /// Get the config file path for a project
+    pub fn project_path(project_root: &Path) -> PathBuf {
+        project_root
+            .join(".config")
             .join("ant-army")
             .join("names.toml")
     }
 
-    /// Copy the default names.toml to the specified path
+    /// Copy the default names.toml to a project's config directory
     /// 
     /// Used by `ant-army init` to create user-customizable config.
-    pub fn copy_default_to(path: &Path) -> Result<()> {
+    pub fn install_for_project(project_root: &Path) -> Result<PathBuf> {
+        let path = Self::project_path(project_root);
+        
         if let Some(parent) = path.parent() {
             std::fs::create_dir_all(parent).map_err(|e| {
                 crate::Error::Config(format!("Failed to create config directory: {}", e))
             })?;
         }
         
-        std::fs::write(path, DEFAULT_NAMES_TOML).map_err(|e| {
+        std::fs::write(&path, DEFAULT_NAMES_TOML).map_err(|e| {
             crate::Error::Config(format!("Failed to write names.toml: {}", e))
         })?;
         
-        Ok(())
-    }
-
-    /// Copy the default names.toml to the default location
-    pub fn install_default() -> Result<PathBuf> {
-        let path = Self::default_path();
-        Self::copy_default_to(&path)?;
         Ok(path)
     }
 
@@ -103,7 +107,7 @@ impl NamingConfig {
     }
 }
 
-/// Ant name generator
+/// Ant name generator for a single project
 #[derive(Debug, Clone)]
 pub struct AntNameGenerator {
     config: NamingConfig,
@@ -115,9 +119,14 @@ impl AntNameGenerator {
         Self { config }
     }
 
-    /// Create a generator with default config (or loaded from file)
+    /// Create a generator for a specific project
+    pub fn for_project(project_root: &Path) -> Self {
+        Self::new(NamingConfig::load_for_project(project_root))
+    }
+
+    /// Create a generator with embedded defaults (no file loading)
     pub fn with_defaults() -> Self {
-        Self::new(NamingConfig::load_or_default())
+        Self::new(NamingConfig::default())
     }
 
     /// Generate a random name
@@ -181,6 +190,69 @@ impl AntNameGenerator {
 impl Default for AntNameGenerator {
     fn default() -> Self {
         Self::with_defaults()
+    }
+}
+
+/// Cache of name generators per project
+/// 
+/// The Queen uses this to lazy-load naming configs per project.
+#[derive(Debug, Default)]
+pub struct NamingService {
+    /// Cached generators by project root path
+    cache: RwLock<HashMap<PathBuf, Arc<AntNameGenerator>>>,
+}
+
+impl NamingService {
+    /// Create a new naming service
+    pub fn new() -> Self {
+        Self {
+            cache: RwLock::new(HashMap::new()),
+        }
+    }
+
+    /// Get or create a name generator for a project
+    /// 
+    /// Lazy-loads the project's names.toml on first access.
+    pub fn generator_for(&self, project_root: &Path) -> Arc<AntNameGenerator> {
+        // Try read lock first (fast path)
+        {
+            let cache = self.cache.read().unwrap();
+            if let Some(gen) = cache.get(project_root) {
+                return gen.clone();
+            }
+        }
+
+        // Need to create - take write lock
+        let mut cache = self.cache.write().unwrap();
+        
+        // Double-check in case another thread created it
+        if let Some(gen) = cache.get(project_root) {
+            return gen.clone();
+        }
+
+        // Create and cache
+        let generator = Arc::new(AntNameGenerator::for_project(project_root));
+        cache.insert(project_root.to_path_buf(), generator.clone());
+        
+        tracing::info!(
+            "Loaded naming config for project {:?} ({} combinations)",
+            project_root,
+            generator.total_combinations()
+        );
+        
+        generator
+    }
+
+    /// Invalidate cached generator for a project (e.g., after config change)
+    pub fn invalidate(&self, project_root: &Path) {
+        let mut cache = self.cache.write().unwrap();
+        cache.remove(project_root);
+    }
+
+    /// Clear all cached generators
+    pub fn clear(&self) {
+        let mut cache = self.cache.write().unwrap();
+        cache.clear();
     }
 }
 
@@ -268,5 +340,34 @@ mod tests {
         assert!(DEFAULT_NAMES_TOML.contains("nouns"));
         assert!(DEFAULT_NAMES_TOML.contains("swift"));
         assert!(DEFAULT_NAMES_TOML.contains("falcon"));
+    }
+
+    #[test]
+    fn test_naming_service_caching() {
+        let service = NamingService::new();
+        let project_root = PathBuf::from("/tmp/test-project");
+        
+        // First access should create and cache
+        let gen1 = service.generator_for(&project_root);
+        let gen2 = service.generator_for(&project_root);
+        
+        // Should be the same Arc (same pointer)
+        assert!(Arc::ptr_eq(&gen1, &gen2), "Should return cached generator");
+        
+        // Invalidate and get again - should be different Arc
+        service.invalidate(&project_root);
+        let gen3 = service.generator_for(&project_root);
+        assert!(!Arc::ptr_eq(&gen1, &gen3), "Should create new generator after invalidate");
+    }
+
+    #[test]
+    fn test_project_path() {
+        let project_root = PathBuf::from("/home/user/my-project");
+        let config_path = NamingConfig::project_path(&project_root);
+        
+        assert_eq!(
+            config_path,
+            PathBuf::from("/home/user/my-project/.config/ant-army/names.toml")
+        );
     }
 }
