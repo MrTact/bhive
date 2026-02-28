@@ -1,4 +1,4 @@
-# OpenCode Integration Analysis - Ant Army Foundation
+# OpenCode Integration Analysis - B'hive Foundation
 
 **Analysis Date:** January 23, 2026
 **OpenCode Version:** 1.1.32
@@ -55,7 +55,7 @@
 
 - ✅ **Agent orchestration framework exists**
 - ✅ Subagent pattern already supported
-- 🔄 Need to add our specialized Ant Army agents (developer, review, integration)
+- 🔄 Need to add our specialized B'hive agents (developer, review, integration)
 - 🔄 Need to enhance with parallel execution capability
 
 #### 4. **Tool System**
@@ -71,7 +71,7 @@
 
 - ✅ **File operations, bash, search already implemented**
 - ✅ Don't need to build basic tool layer
-- 🔄 Can add Ant Army-specific tools (decompose, coordinate, etc.)
+- 🔄 Can add B'hive-specific tools (decompose, coordinate, etc.)
 
 #### 5. **Event Bus System**
 
@@ -85,8 +85,8 @@
 **What This Means:**
 
 - ✅ **Event infrastructure exists**
-- 🔄 Can use for ant-to-ant communication
-- 🔄 Extend with Ant Army event types
+- 🔄 Can use for operator-to-operator communication
+- 🔄 Extend with B'hive event types
 
 #### 6. **Storage Layer**
 
@@ -113,7 +113,7 @@
 **What This Means:**
 
 - ✅ **Logging system exists**
-- 🔄 Extend with correlation IDs for multi-ant tracing
+- 🔄 Extend with correlation IDs for multi-operator tracing
 
 #### 8. **Configuration System**
 
@@ -127,8 +127,8 @@
 **What This Means:**
 
 - ✅ **Configuration infrastructure exists**
-- 🔄 Define Ant Army agents via config
-- 🔄 Add Ant Army-specific settings
+- 🔄 Define B'hive agents via config
+- 🔄 Add B'hive-specific settings
 
 #### 9. **Git Worktree Support**
 
@@ -156,7 +156,7 @@
 **What This Means:**
 
 - ✅ **Protocol for external integrations exists**
-- 🔄 Could expose Ant Army capabilities as MCP server
+- 🔄 Could expose B'hive capabilities as MCP server
 
 #### 11. **Skill System**
 
@@ -173,7 +173,7 @@
 
 ---
 
-## What We Need to Extend
+## What We Need to Extend for B'hive
 
 ### 🔄 Extensions to OpenCode
 
@@ -204,7 +204,7 @@
 **Implementation:**
 
 - Meta-orchestrator that spawns multiple OpenCode sessions
-- Each ant = one OpenCode session with isolated workspace
+- Each operator = one OpenCode session with isolated workspace
 - Coordination layer above OpenCode
 
 #### 3. **Task Persistence & Retry**
@@ -227,21 +227,21 @@
 **Gap:** TUI shows single agent progress
 **Need:**
 
-- View all active ants
+- View all active operators
 - Task dependency graph
 - Overall progress
 
 **Implementation:**
 
 - Extend OpenTUI with new components
-- Add multi-agent dashboard view
+- Add multi-operator dashboard view
 - Query coordination database for status
 
 ---
 
 ## What We Need to Build from Scratch
 
-### 🆕 New Ant Army Components
+### 🆕 New B'hive Components
 
 #### 1. **Task Decomposition Engine**
 
@@ -295,11 +295,11 @@
 
 ## Revised Architecture
 
-### How Ant Army Sits Atop OpenCode
+### How B'hive Sits Atop OpenCode
 
 ```
 ┌─────────────────────────────────────────────────────────┐
-│                   Ant Army Layer                        │
+│                   B'hive Layer                          │
 │                                                         │
 │  ┌──────────────────────────────────────────────────┐  │
 │  │         Meta-Orchestrator                        │  │
@@ -344,16 +344,16 @@
 
 ### Component Mapping
 
-| Ant Army Component      | Implementation Strategy                       |
+| B'hive Component        | Implementation Strategy                       |
 | ----------------------- | --------------------------------------------- |
 | **TUI Dashboard**       | Extend OpenCode TUI with multi-agent views    |
-| **Session Management**  | Use OpenCode sessions (1 ant = 1 session)     |
-| **Agent Framework**     | Define Ant Army agents in OpenCode config     |
+| **Session Management**  | Use OpenCode sessions (1 operator = 1 session) |
+| **Agent Framework**     | Define B'hive agents in OpenCode config       |
 | **Tool Execution**      | Leverage OpenCode tool system                 |
 | **File Operations**     | Use OpenCode edit/read/write tools            |
 | **Workspace Isolation** | Git worktrees (existing) or add Jujutsu       |
 | **Event System**        | Extend OpenCode event bus                     |
-| **Configuration**       | Add Ant Army config to opencode.jsonc         |
+| **Configuration**       | Add B'hive config to opencode.jsonc           |
 | **Logging**             | Use OpenCode logging with correlation IDs     |
 | **Task Coordination**   | NEW: PostgreSQL + Bull (external to OpenCode) |
 | **Decomposition**       | NEW: Meta-orchestrator (external to OpenCode) |
@@ -372,10 +372,10 @@
 - Work as an orchestration layer above it
 - Use OpenCode's extension points (config, agents, skills)
 
-**2. Ant Army as Meta-Orchestrator**
+**2. B'hive as Meta-Orchestrator**
 
 - Separate process that manages multiple OpenCode instances
-- Spawns OpenCode sessions for each ant
+- Spawns OpenCode sessions for each operator
 - Coordinates via task database
 - OpenCode sessions pull work from queue
 
@@ -386,24 +386,24 @@
 {
   "agent": [
     {
-      "name": "ant-operator",
+      "name": "op-dev",
       "mode": "subagent",
-      "description": "Ant Army developer agent - executes focused subtasks",
+      "description": "B'hive developer agent - executes focused subtasks",
       "permission": { "*": "allow" },
       "maxSteps": 10,
     },
     {
-      "name": "ant-review",
+      "name": "op-review",
       "mode": "subagent",
-      "description": "Ant Army review agent - reviews code with clean context",
+      "description": "B'hive review agent - reviews code with clean context",
       "permission": { "edit": "deny", "write": "deny" },
       "maxSteps": 5,
     },
   ],
-  "instructions": [".opencode/ant-army-guidelines.md"],
-  "antArmy": {
+  "instructions": [".opencode/bhive-guidelines.md"],
+  "bhive": {
     "enabled": true,
-    "coordinationDb": "postgresql://localhost:5432/ant_army",
+    "coordinationDb": "postgresql://localhost:5432/bhive",
     "queueRedis": "redis://localhost:6379",
   },
 }
@@ -427,18 +427,18 @@ Option B: Add Jujutsu Support (preferred but requires work)
 **5. TUI Extension**
 
 ```typescript
-// Extend OpenTUI with Ant Army views
-// /packages/opencode/src/cli/cmd/tui/component/ant-army/
+// Extend OpenTUI with B'hive views
+// /packages/opencode/src/cli/cmd/tui/component/bhive/
 
-export function AntArmyDashboard() {
+export function BhiveDashboard() {
   // Query coordination database
-  const sessions = useAntArmySessions()
+  const sessions = useBhiveSessions()
   const tasks = useTasks()
 
   return (
     <Box>
       <TaskGraph tasks={tasks} />
-      <AntActivityList sessions={sessions} />
+      <OperatorActivityList sessions={sessions} />
       <ProgressIndicator />
     </Box>
   )
@@ -472,10 +472,10 @@ export function AntArmyDashboard() {
 **NEW PLAN:**
 
 1. **Week 1: Foundation**
-   - Set up Ant Army repository (separate from OpenCode)
+   - Set up B'hive repository (separate from OpenCode)
    - PostgreSQL + Bull + Docker Compose
    - Study OpenCode extension points
-   - Define Ant Army agents in OpenCode config
+   - Define B'hive agents in OpenCode config
 
 2. **Week 2: Meta-Orchestrator**
    - Task decomposition engine
@@ -490,8 +490,8 @@ export function AntArmyDashboard() {
    - Basic LEGOMem storage
 
 4. **Week 4: Observability Extension**
-   - Extend OpenTUI with Ant Army dashboard
-   - Multi-agent progress view
+   - Extend OpenTUI with B'hive dashboard
+   - Multi-operator progress view
    - Task graph visualization
    - Integration testing
 
@@ -503,26 +503,26 @@ export function AntArmyDashboard() {
 
 1. **Agent Configuration**
    - Add to: `.opencode/opencode.jsonc`
-   - Define ant-operator, ant-review, ant-integration agents
+   - Define op-dev, op-review, op-integration agents
 
 2. **TUI Components**
    - Extend: `/packages/opencode/src/cli/cmd/tui/component/`
-   - Add: `ant-army/` subdirectory with multi-agent views
+   - Add: `bhive/` subdirectory with multi-operator views
 
 3. **Event Types**
    - Extend: `/packages/opencode/src/bus/`
-   - Add Ant Army event types (task_decomposed, ant_claimed, etc.)
+   - Add B'hive event types (task_decomposed, operator_claimed, etc.)
 
 4. **Storage**
    - Leverage: `/packages/opencode/src/storage/`
-   - Store LEGOMem patterns in `~/.opencode/ant-army/patterns/`
+   - Store LEGOMem patterns in `~/.opencode/bhive/patterns/`
 
 5. **Commands**
-   - Add: `/packages/opencode/src/cli/cmd/ant-army.ts`
-   - New CLI command: `opencode ant-army <task>`
+   - Add: `/packages/opencode/src/cli/cmd/bhive.ts`
+   - New CLI command: `opencode bhive <task>`
 
 6. **Skills**
-   - Add: `.opencode/skill/ant-army/`
+   - Add: `.opencode/skill/bhive/`
    - Decomposition, coordination, review skills
 
 ---
@@ -537,7 +537,7 @@ export function AntArmyDashboard() {
 
 ✅ **Faster Time to Market**
 
-- Focus on unique Ant Army capabilities
+- Focus on unique B'hive capabilities
 - Less code to write and maintain
 - Proven UX patterns
 
@@ -551,7 +551,7 @@ export function AntArmyDashboard() {
 
 - OpenCode's plugin system
 - Configuration-driven agent definitions
-- Easy to add new ant types
+- Easy to add new operator types
 
 ✅ **Community**
 
@@ -563,7 +563,7 @@ export function AntArmyDashboard() {
 
 ## Risks & Mitigations
 
-**Risk 1: OpenCode Changes Break Ant Army**
+**Risk 1: OpenCode Changes Break B'hive**
 
 - **Mitigation:** Version pin OpenCode dependency
 - **Mitigation:** Abstract OpenCode interface (adapter pattern)

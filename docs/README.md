@@ -1,11 +1,11 @@
-# Ant Army - Documentation Index
+# B'hive - Documentation Index
 
 **Last Updated:** February 23, 2026
 
 This index provides quick navigation to all project documentation and helps understand the document hierarchy.
 
 > [!IMPORTANT]
-> **Architecture Change (February 2026):** Ant Army is being built **from scratch in Rust** as a headless service, not as an OpenCode fork. See [HEADLESS_ARCHITECTURE.md](HEADLESS_ARCHITECTURE.md) for the current approach.
+> **Architecture Change (February 2026):** B'hive is being built **from scratch in Rust** as a headless service, not as an OpenCode fork. See [HEADLESS_ARCHITECTURE.md](HEADLESS_ARCHITECTURE.md) for the current approach.
 
 ---
 
@@ -29,12 +29,12 @@ This index provides quick navigation to all project documentation and helps unde
 ### [COORDINATION_LAYER_RUST.md](COORDINATION_LAYER_RUST.md) - **Coordination Layer (Rust)** ⭐
 
 **Purpose:** PostgreSQL-based task coordination implementation in Rust
-**Use When:** Implementing or debugging the ant coordination system
+**Use When:** Implementing or debugging the operator coordination system
 **Key Sections:**
 
 - Per-Project Database Isolation
-- Setup Flow (`ant-army init`)
-- Database Schema (ants, tasks, task_dependencies, logs)
+- Setup Flow (`bhive init`)
+- Database Schema (operators, tasks, task_dependencies, logs)
 - Coordinator Implementation (sqlx, LISTEN/NOTIFY)
 - Project Management Commands
 
@@ -67,7 +67,7 @@ This index provides quick navigation to all project documentation and helps unde
 - Foundation (Rust Headless Service)
 - Core Capabilities (Agent Types, LEGOMem, Quality, Routing)
 - Detailed Architecture (Crate Organization, Layers)
-- Scaling Strategy (10 → 100 → 1000+ ants)
+- Scaling Strategy (10 → 100 → 1000+ operators)
 - Technology Stack & Cost Estimates
 
 **Size:** ~1500 lines | **Audience:** Engineers, architects
@@ -96,7 +96,7 @@ This index provides quick navigation to all project documentation and helps unde
 
 ### [SETUP_TOOL_PRD.md](SETUP_TOOL_PRD.md) - Setup Tool Requirements
 
-**Purpose:** First-time setup wizard for Ant Army users
+**Purpose:** First-time setup wizard for B'hive users
 **Use When:** Implementing or understanding the setup flow
 **Key Sections:**
 
@@ -181,8 +181,8 @@ All research documents are stored in the `research/` directory and referenced fr
 **Key Insight:** Task decomposition enables clean review context (68% cheaper)
 **Tiers:**
 
-- Tier 1: Self-review (developer ant)
-- Tier 2: Review agent (separate ant, same provider)
+- Tier 1: Self-review (developer operator)
+- Tier 2: Review agent (separate operator, same provider)
 - Tier 3: Cross-provider review (different AI provider)
 - Tier 4: External tools (static analysis, security scanners)
   **Marketing:** Includes "AI That Checks AI" positioning
@@ -193,7 +193,7 @@ All research documents are stored in the `research/` directory and referenced fr
 ## 📁 Directory Structure
 
 ```
-docs/ant-army/                          # All Ant Army documentation
+docs/bhive/                             # All B'hive documentation
 ├── README.md                           # This file (documentation index)
 ├── PRD.md                              # Product requirements (executive)
 ├── ARCHITECTURE.md                     # Technical architecture
@@ -219,7 +219,7 @@ docs/ant-army/                          # All Ant Army documentation
 
 ## 🎯 Quick Reference: Find Information By Question
 
-### "What is Ant Army?"
+### "What is B'hive?"
 
 ➡️ **PRD.md** - Executive Summary
 
@@ -253,7 +253,7 @@ docs/ant-army/                          # All Ant Army documentation
 ### "How do we ensure quality?"
 
 ➡️ **research/quality-assurance-strategy.md** - Detailed strategy
-➡️ **ARCHITECTURE.md** - Review Ant Workflow
+➡️ **ARCHITECTURE.md** - Review Operator Workflow
 
 ### "How does pattern learning work?"
 

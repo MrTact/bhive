@@ -1,0 +1,25 @@
+[package]
+name = "bhive-cli"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[[bin]]
+name = "bhive"
+path = "src/main.rs"
+
+[dependencies]
+bhive-core = { path = "../bhive-core" }
+
+tokio = { workspace = true }
+anyhow = { workspace = true }
+clap = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+sqlx = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+
+# HTTP client for API calls
+reqwest = { version = "0.12", features = ["json"] }

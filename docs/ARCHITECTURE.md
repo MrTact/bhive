@@ -1,4 +1,4 @@
-# Ant Army - Architecture
+# B'hive - Architecture
 
 **Version:** 0.2
 **Last Updated:** February 23, 2026
@@ -7,13 +7,13 @@
 ---
 
 > [!IMPORTANT]
-> **Architecture Change (February 2026):** Ant Army is now being built **from scratch in Rust**, not as an OpenCode fork. See [HEADLESS_ARCHITECTURE.md](HEADLESS_ARCHITECTURE.md) for the current implementation approach and [COORDINATION_LAYER_RUST.md](COORDINATION_LAYER_RUST.md) for the coordination layer design.
+> **Architecture Change (February 2026):** B'hive is now being built **from scratch in Rust**, not as an OpenCode fork. See [HEADLESS_ARCHITECTURE.md](HEADLESS_ARCHITECTURE.md) for the current implementation approach and [COORDINATION_LAYER_RUST.md](COORDINATION_LAYER_RUST.md) for the coordination layer design.
 
 ---
 
 ## Overview
 
-Ant Army is a massively-scalable agentic development system built in **Rust** using modern LLM interaction crates (Rig, rust-genai). It provides parallel agent orchestration, aggressive task decomposition, and learned capability patterns. The system transforms development from sequential work into coordinated swarm activity where hundreds or thousands of specialized "ant" agents work in parallel.
+B'hive is a massively-scalable agentic development system built in **Rust** using modern LLM interaction crates (Rig, rust-genai). It provides parallel agent orchestration, aggressive task decomposition, and learned capability patterns. The system transforms development from sequential work into coordinated swarm activity where hundreds or thousands of specialized "operator" agents work in parallel.
 
 **Core Vision:**
 
@@ -21,13 +21,13 @@ Ant Army is a massively-scalable agentic development system built in **Rust** us
 
 **Implementation Approach:**
 
-> Ant Army is a headless Rust service exposing a REST/WebSocket API. A "queen" coordinator agent spawns "ant" worker agents. Multiple client interfaces (CLI, VSCode extension, TUI) connect to this service.
+> B'hive is a headless Rust service exposing a REST/WebSocket API. A "queen" coordinator agent spawns "operator" worker agents. Multiple client interfaces (CLI, VSCode extension, TUI) connect to this service.
 
 ---
 
 ## Foundation: Rust Headless Service
 
-Ant Army is built from scratch in Rust with a service-first architecture.
+B'hive is built from scratch in Rust with a service-first architecture.
 
 ### Technology Stack
 
@@ -52,12 +52,12 @@ See [HEADLESS_ARCHITECTURE.md](HEADLESS_ARCHITECTURE.md) for detailed architectu
 
 #### **1. Agent Types**
 
-Ant Army defines specialized agent types:
+B'hive defines specialized agent types:
 
-- **queen** - Primary coordinator agent (decomposes tasks, spawns ants, aggregates results)
-- **ant-operator** - Worker agent for focused development tasks
-- **ant-review** - Worker agent for code review with clean context
-- **ant-integration** - Worker agent for merging results
+- **queen** - Primary coordinator agent (decomposes tasks, spawns operators, aggregates results)
+- **operator** - Worker agent for focused development tasks
+- **review** - Worker agent for code review with clean context
+- **integration** - Worker agent for merging results
 
 ```
 User request: "Add authentication system"
@@ -65,26 +65,26 @@ User request: "Add authentication system"
 Traditional (single agent):
 └─ One agent handles entire task (large context)
 
-Ant Army:
+B'hive:
 └─ queen agent receives task
    ├─ Decomposes into 8 subtasks
-   ├─ Spawns Ant #1: "Define auth middleware" (500 tokens)
-   ├─ Spawns Ant #2: "Implement JWT generation" (400 tokens)
-   ├─ Spawns Ant #3: "Implement JWT validation" (450 tokens)
-   ├─ Spawns Ant #4: "Add auth routes" (300 tokens)
-   ├─ Spawns Ant #5: "Write unit tests - gen" (400 tokens)
-   ├─ Spawns Ant #6: "Write unit tests - val" (400 tokens)
-   ├─ Spawns Ant #7: "Write integration tests" (500 tokens)
-   └─ Spawns Ant #8: "Update API docs" (300 tokens)
+   ├─ Spawns Operator #1: "Define auth middleware" (500 tokens)
+   ├─ Spawns Operator #2: "Implement JWT generation" (400 tokens)
+   ├─ Spawns Operator #3: "Implement JWT validation" (450 tokens)
+   ├─ Spawns Operator #4: "Add auth routes" (300 tokens)
+   ├─ Spawns Operator #5: "Write unit tests - gen" (400 tokens)
+   ├─ Spawns Operator #6: "Write unit tests - val" (400 tokens)
+   ├─ Spawns Operator #7: "Write integration tests" (500 tokens)
+   └─ Spawns Operator #8: "Update API docs" (300 tokens)
 
-Result: 8 ants work in parallel vs 1 agent sequentially
+Result: 8 operators work in parallel vs 1 agent sequentially
 ```
 
 **Benefits:**
 
-- **Small contexts:** Each ant gets 300-500 tokens vs 5K
+- **Small contexts:** Each operator gets 300-500 tokens vs 5K
 - **Clean focus:** Straightforward, single-purpose tasks
-- **Massive parallelization:** 8× speedup (or more with more ants)
+- **Massive parallelization:** 8× speedup (or more with more operators)
 - **Compression-friendly:** Small contexts compress better
 
 #### **2. Learned Capabilities System**
@@ -95,7 +95,7 @@ Result: 8 ants work in parallel vs 1 agent sequentially
 ```
 Week 1: "Add JWT auth to /login"
 ├─ Decompose into subtasks
-├─ Execute with ants
+├─ Execute with operators
 ├─ Store successful pattern in vector DB
 └─ Template: jwtAuthEndpoint(path, config)
 
@@ -124,12 +124,12 @@ Hackathon:
 ├─ 4 developers, 1 merger
 └─ Merger reviews everything
 
-Ant Army:
-├─ N operator ants (100-1000+)
-├─ M review ants (10-100+)
+B'hive:
+├─ N operator agents (100-1000+)
+├─ M review agents (10-100+)
 └─ Quality tiers:
     ├─ Tier 1: Self-review with marker (quick sanity)
-    ├─ Tier 2: Separate review ant (clean context)
+    ├─ Tier 2: Separate review operator (clean context)
     ├─ Tier 3: Cross-provider review (critical code)
     └─ Tier 4: External tools (always)
 ```
@@ -138,19 +138,19 @@ Ant Army:
 
 ```
 Security-critical auth code:
-├─ Generate: Ant using GPT-4o-mini
-├─ Review 1: Review ant using GPT-4o (same provider)
-├─ Review 2: Review ant using Claude Opus (different provider!)
+├─ Generate: Operator using GPT-4o-mini
+├─ Review 1: Review operator using GPT-4o (same provider)
+├─ Review 2: Review operator using Claude Opus (different provider!)
 └─ External: Security linter + tests
 ```
 
 #### **4. Intelligent Routing with Cost Optimization**
 
 **Problem:** Using expensive models for everything
-**Solution:** Route ants to appropriate models
+**Solution:** Route operators to appropriate models
 
 ```
-Ant assignments:
+Operator assignments:
 ├─ Simple code generation: GPT-4o-mini ($0.6/M tokens)
 ├─ Complex architecture: GPT-4o ($15/M tokens)
 ├─ Critical reviews: Claude Opus ($15/M tokens)
@@ -160,32 +160,32 @@ Ant assignments:
 **With prompt compression:**
 
 ```
-Ant context before compression: 2K tokens
+Operator context before compression: 2K tokens
 After extractive compression: 400 tokens (80% reduction)
-Cost per ant: $0.00024 (mini) vs $0.012 (opus)
+Cost per operator: $0.00024 (mini) vs $0.012 (opus)
 
-1000 ants: $0.24 (compressed mini) vs $12 (opus)
-Savings: $11.76 per 1000-ant task
+1000 operators: $0.24 (compressed mini) vs $12 (opus)
+Savings: $11.76 per 1000-operator task
 ```
 
 #### **5. Massive Scale**
 
 **Hackathon:** 4 developers max
-**Ant Army:** Hundreds to thousands of ants
+**B'hive:** Hundreds to thousands of operators
 
 ```
 Scale example: "Rewrite authentication system"
 
 Decomposition yields 500 subtasks:
-├─ 500 operator ants work in parallel
-├─ 50 review ants review completed work
-├─ 10 integration ants merge approved changes
+├─ 500 operator agents work in parallel
+├─ 50 review operators review completed work
+├─ 10 integration operators merge approved changes
 └─ 1 orchestrator coordinates everything
 
 Time to complete:
 - Traditional: 2-3 days (human developer)
 - Hackathon (4 agents): 6-8 hours
-- Ant Army (500+ ants): 30-60 minutes
+- B'hive (500+ operators): 30-60 minutes
 
 Cost: $5-10 (acceptable for 30-minute turnaround)
 ```
@@ -198,16 +198,16 @@ Cost: $5-10 (acceptable for 30-minute turnaround)
 
 ```
 crates/
-├─ ant-army-core/       # Core types, coordination, agent definitions
-│   ├─ agent/           # Queen, ant-operator, ant-review, ant-integration
+├─ bhive-core/          # Core types, coordination, agent definitions
+│   ├─ agent/           # Queen, operator, review, integration
 │   ├─ coordination/    # PostgreSQL-based task coordination
 │   ├─ vcs/             # Abstract VCS interface + Jujutsu implementation
 │   ├─ task/            # Decomposition and DAG management
 │   ├─ memory/          # LEGOMem pattern storage (Qdrant)
 │   └─ routing/         # Intelligent model selection
-├─ ant-army-api/        # Axum REST/WebSocket API server
-├─ ant-army-cli/        # CLI client
-└─ ant-army-llm/        # Rig + rust-genai integration
+├─ bhive-api/           # Axum REST/WebSocket API server
+├─ bhive-cli/           # CLI client
+└─ bhive-llm/           # Rig + rust-genai integration
 ```
 
 See [COORDINATION_LAYER_RUST.md](COORDINATION_LAYER_RUST.md) for detailed Rust implementation.
@@ -221,8 +221,8 @@ See [COORDINATION_LAYER_RUST.md](COORDINATION_LAYER_RUST.md) for detailed Rust i
 - Receive user requests via API
 - Query capability library (learned patterns)
 - Decide: Use learned pattern or decompose novel task
-- Spawn ant workers as Tokio tasks
-- Aggregate results from ants
+- Spawn operator workers as Tokio tasks
+- Aggregate results from operators
 - Manage quality tier selection
 
 **Decision Flow:**
@@ -235,12 +235,12 @@ Pattern Match Query (Vector DB)
     ├─ Match Found (similarity > 0.9)
     │   ├─ Load Template
     │   ├─ Instantiate with params
-    │   └─ Spawn ants using learned workflow
+    │   └─ Spawn operators using learned workflow
     │
     └─ No Match / Novel Task
         ├─ Analyze complexity
         ├─ Decompose into task DAG
-        └─ Spawn ants for execution
+        └─ Spawn operators for execution
 ```
 
 ### Layer 2: Capability Library (Learned System)
@@ -415,14 +415,14 @@ class TaskDecomposer:
 
 **Implementation:** PostgreSQL coordination with Tokio task spawning
 
-#### **4.1 Ant Lifecycle**
+#### **4.1 Operator Lifecycle**
 
 ```rust
-// crates/ant-army-core/src/coordination/types.rs
-pub struct Ant {
+// crates/bhive-core/src/coordination/types.rs
+pub struct Operator {
     pub id: String,
-    pub ant_type: AntType,  // Operator, Review, Integration
-    pub status: AntStatus,  // Idle, Working, Completed, Failed
+    pub operator_type: OperatorType,  // Operator, Review, Integration
+    pub status: OperatorStatus,  // Idle, Working, Completed, Failed
     pub current_task_id: Option<String>,
     pub workspace_path: Option<PathBuf>,
     pub model: String,
@@ -437,33 +437,33 @@ pub struct WorkspaceInfo {
 }
 ```
 
-#### **4.2 Spawn Ant**
+#### **4.2 Spawn Operator**
 
 ```rust
-// crates/ant-army-core/src/agent/queen.rs
+// crates/bhive-core/src/agent/queen.rs
 impl Queen {
-    pub async fn spawn_ant(
+    pub async fn spawn_operator(
         &self,
-        ant_type: AntType,
+        operator_type: OperatorType,
         task_id: &str,
         model: Option<&str>,
-    ) -> Result<Ant> {
+    ) -> Result<Operator> {
         // Create Jujutsu workspace
-        let workspace = self.vcs.create_workspace(&format!("ant-{}", task_id)).await?;
+        let workspace = self.vcs.create_workspace(&format!("op-{}", task_id)).await?;
         
-        // Acquire ant from pool (or create new)
-        let ant = self.coordinator.acquire_ant(ant_type).await?;
+        // Acquire operator from pool (or create new)
+        let operator = self.coordinator.acquire_operator(operator_type).await?;
         
         // Assign task and workspace
-        self.coordinator.assign_task(&ant.id, task_id, &workspace.path).await?;
+        self.coordinator.assign_task(&operator.id, task_id, &workspace.path).await?;
         
-        // Spawn Tokio task for ant execution
-        let ant_id = ant.id.clone();
+        // Spawn Tokio task for operator execution
+        let operator_id = operator.id.clone();
         tokio::spawn(async move {
-            self.run_ant_loop(ant_id, task_id).await
+            self.run_operator_loop(operator_id, task_id).await
         });
         
-        Ok(ant)
+        Ok(operator)
     }
 }
 ```
@@ -473,14 +473,14 @@ impl Queen {
 See [COORDINATION_LAYER_RUST.md](COORDINATION_LAYER_RUST.md) for the complete PostgreSQL-based coordination implementation.
 
 ```rust
-// crates/ant-army-core/src/coordination/coordinator.rs
+// crates/bhive-core/src/coordination/coordinator.rs
 impl Coordinator {
-    /// Executes decomposed tasks using ant workers
+    /// Executes decomposed tasks using operator workers
     ///
     /// Strategy:
     /// 1. Pre-create all tasks with dependencies in PostgreSQL
     /// 2. Subscribe to LISTEN/NOTIFY for task_ready events
-    /// 3. Spawn ants for ready tasks (no unmet dependencies)
+    /// 3. Spawn operators for ready tasks (no unmet dependencies)
     /// 4. Monitor completion via database events
     /// 5. Review completed work
     /// 6. Handle failures with rework loop
@@ -493,11 +493,11 @@ impl Coordinator {
         // Subscribe to notifications
         let mut notifications = subscribe(&self.pool).await?;
         
-        // Process notifications (task_ready, task_completed, ant_idle)
+        // Process notifications (task_ready, task_completed, operator_idle)
         while let Some(notification) = notifications.recv().await {
             match notification {
-                Notification::TaskReady { task_id, ant_type } => {
-                    self.spawn_ant_for_task(&task_id, ant_type).await?;
+                Notification::TaskReady { task_id, operator_type } => {
+                    self.spawn_operator_for_task(&task_id, operator_type).await?;
                 }
                 Notification::TaskCompleted { task_id } => {
                     self.handle_task_completion(&task_id).await?;
@@ -514,14 +514,14 @@ impl Coordinator {
 #### **4.4 In-Place Adaptation (Routine-Inspired)**
 
 ```rust
-// crates/ant-army-core/src/task/adaptation.rs
+// crates/bhive-core/src/task/adaptation.rs
 impl AdaptiveExecution {
     /// Adapts execution plan based on failures
     ///
     /// Instead of replanning entire workflow:
-    /// 1. Analyze failure from ant worker
+    /// 1. Analyze failure from operator worker
     /// 2. Modify failing task structurally
-    /// 3. Respawn ant with updated approach
+    /// 3. Respawn operator with updated approach
     
     pub async fn adapt_on_failure(
         &self,
@@ -553,9 +553,9 @@ impl AdaptiveExecution {
 }
 ```
 
-### Layer 5: Agent Layer (Ant Agent Types)
+### Layer 5: Agent Layer (Operator Agent Types)
 
-#### **5.1 Operator Ants**
+#### **5.1 Development Operators**
 
 **Runtime Characteristics:**
 
@@ -567,12 +567,12 @@ Workspace: Individual Jujutsu workspace (isolated)
 Lifecycle: Spawn → Execute → Self-Review → Report → Complete
 ```
 
-**Operator Ant Workflow:**
+**Development Operator Workflow:**
 
 ```
 1. Spawned as Tokio task by queen
 2. Receives compressed task context
-3. Workspace already set up (jj workspace add ant-{id})
+3. Workspace already set up (jj workspace add op-{id})
 4. Update workspace: jj workspace update-stale
 5. Create new commit: jj new main
 6. Implement subtask (focused, single goal)
@@ -584,7 +584,7 @@ Lifecycle: Spawn → Execute → Self-Review → Report → Complete
 12. Workspace kept for review/integration
 ```
 
-#### **5.2 Review Ants**
+#### **5.2 Review Operators**
 
 **Runtime Characteristics:**
 
@@ -596,7 +596,7 @@ Workspace: Read-only access to developer's workspace
 Lifecycle: Spawn → Review → Approve/Reject → Complete
 ```
 
-**Review Ant Workflow:**
+**Review Operator Workflow:**
 
 ```
 1. Spawned by queen/coordinator
@@ -615,7 +615,7 @@ Lifecycle: Spawn → Review → Approve/Reject → Complete
    - Reject → Return failure with inline comments
 ```
 
-#### **5.3 Integration Ants**
+#### **5.3 Integration Operators**
 
 **Runtime Characteristics:**
 
@@ -627,7 +627,7 @@ Workspace: Integration workspace (can modify)
 Lifecycle: Spawn → Rebase → Merge → Verify → Complete
 ```
 
-**Integration Ant Workflow:**
+**Integration Operator Workflow:**
 
 ```
 1. Spawned by coordinator after review approval
@@ -661,8 +661,8 @@ Components:
 └─ Build Verification: Ensure it compiles
 
 Integration:
-- Run after operator ant completes
-- Before review ant sees code
+- Run after operator completes
+- Before review operator sees code
 - Block merge if failures
 - Feed results to rework loop
 ```
@@ -769,23 +769,23 @@ async def evolve_template(template: RoutineTemplate, execution: Execution):
 
 **Phase 1 (MVP):**
 
-- 10-20 operator ants
-- 2-3 review ants
-- 1 integration ant
+- 10-20 operators
+- 2-3 review operators
+- 1 integration operator
 - Target: 10× speedup over single agent
 
 **Phase 2 (Production):**
 
-- 50-100 operator ants
-- 10-15 review ants
-- 3-5 integration ants
+- 50-100 operators
+- 10-15 review operators
+- 3-5 integration operators
 - Target: 50× speedup, handle medium projects
 
 **Phase 3 (Massive Scale):**
 
-- 500-1000+ operator ants
-- 50-100 review ants
-- 10-20 integration ants
+- 500-1000+ operators
+- 50-100 review operators
+- 10-20 integration operators
 - Target: 500× speedup, rewrite entire systems in hours
 
 ### Cost vs Speed Trade-offs
@@ -794,19 +794,19 @@ async def evolve_template(template: RoutineTemplate, execution: Execution):
 
 ```
 Conservative (Cheap):
-├─ 50 ants in parallel
+├─ 50 operators in parallel
 ├─ Completion time: 2 hours
 ├─ Cost: $2-3
 └─ Use case: Non-urgent features
 
 Moderate (Balanced):
-├─ 200 ants in parallel
+├─ 200 operators in parallel
 ├─ Completion time: 30 minutes
 ├─ Cost: $8-10
 └─ Use case: Standard development
 
 Aggressive (Fast):
-├─ 500 ants in parallel
+├─ 500 operators in parallel
 ├─ Completion time: 10 minutes
 ├─ Cost: $20-25
 └─ Use case: Critical hotfixes, urgent features
@@ -822,8 +822,8 @@ API Rate Limits:
 ├─ Anthropic: 5K requests/min (Scale tier)
 └─ Need multiple accounts for massive scale
 
-Ant Workers (Tokio Tasks):
-├─ Each ant = one Tokio task
+Operator Workers (Tokio Tasks):
+├─ Each operator = one Tokio task
 ├─ Worker spawn: < 100ms
 ├─ Max concurrent: Limited by rate limits, not workers
 ├─ PostgreSQL-based coordination
@@ -842,10 +842,10 @@ Vector Database (LEGOMem):
 Jujutsu Repository:
 ├─ Single repo with multiple workspaces
 ├─ ~1GB per workspace (node_modules, etc.)
-├─ 100 concurrent ants = 100GB disk
+├─ 100 concurrent operators = 100GB disk
 └─ Cleanup: Remove idle workspaces after 1 hour
 
-Ant Army State (~/.config/ant-army/):
+B'hive State (~/.config/bhive/):
 ├─ PostgreSQL database per project
 ├─ Qdrant vector DB for LEGOMem
 ├─ Event logs and metrics
@@ -855,15 +855,15 @@ Ant Army State (~/.config/ant-army/):
 **Cost Estimates:**
 
 ```
-Per 1000-ant task:
-├─ Generation (mini): 500 ants × $0.0003 = $0.15
-├─ Review (opus): 100 ants × $0.002 = $0.20
-├─ Integration (opus): 20 ants × $0.003 = $0.06
+Per 1000-operator task:
+├─ Generation (mini): 500 operators × $0.0003 = $0.15
+├─ Review (opus): 100 operators × $0.002 = $0.20
+├─ Integration (opus): 20 operators × $0.003 = $0.06
 ├─ Orchestration: $0.05
-└─ Total: ~$0.46 per 1000-ant task
+└─ Total: ~$0.46 per 1000-operator task
 
 With compression (80% reduction):
-└─ Total: ~$0.10 per 1000-ant task
+└─ Total: ~$0.10 per 1000-operator task
 
 Monthly usage (100 tasks/day):
 ├─ Without compression: $1,380/month
@@ -890,7 +890,7 @@ TODO.md on each Jujutsu branch
 
 - No atomic operations (claim task, mark complete)
 - Manual conflict resolution required
-- Can't handle hundreds of concurrent ants
+- Can't handle hundreds of concurrent operators
 
 ### Solution: PostgreSQL-Based Coordination
 
@@ -900,7 +900,7 @@ See [COORDINATION_LAYER_RUST.md](COORDINATION_LAYER_RUST.md) for the complete im
 
 ```
 ┌────────────────────────────────────────────────────────┐
-│              Ant Army Service (Rust)                   │
+│              B'hive Service (Rust)                     │
 │                                                        │
 │  ┌──────────────────────────────────────────────────┐ │
 │  │         Queen Agent                              │ │
@@ -914,7 +914,7 @@ See [COORDINATION_LAYER_RUST.md](COORDINATION_LAYER_RUST.md) for the complete im
 │  │  ┌────────────┴────────┬─────────────┐          │ │
 │  │  ▼                     ▼             ▼          │ │
 │  │ [Tokio Task 1]    [Tokio Task 2]  [Task N]     │ │
-│  │ Ant Operator      Ant Operator     Ant Review  │ │
+│  │ Dev Operator      Dev Operator     Review Op   │ │
 │  │ (jj workspace)    (jj workspace)   (jj ws)     │ │
 │  └──────────────────────────────────────────────────┘ │
 │                                                        │

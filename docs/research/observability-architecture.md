@@ -11,7 +11,7 @@
 ### Core Capabilities
 
 1. **Real-Time Visualization**
-   - See all active ants and what they're working on
+   - See all active operators and what they're working on
    - Visual representation of task dependency graph
    - Progress indicators per task and overall
    - Live updates (< 1 second latency)
@@ -19,7 +19,7 @@
 
 2. **Pause & Inspect**
    - Pause all operations (stop claiming new tasks)
-   - Inspect individual ant state:
+   - Inspect individual operator state:
      - Current task
      - Workspace location and commit ID
      - Time elapsed
@@ -28,7 +28,7 @@
 
 3. **Historical Record**
    - Browse complete execution history
-   - Filter by: time range, ant ID, task type, status
+   - Filter by: time range, operator ID, task type, status
    - View task decomposition decisions
    - View routing decisions (which model, why)
    - View review comments and rework cycles
@@ -93,8 +93,8 @@
 └──────────────────────────────────────────────────────────────┘
                           ↕
 ┌──────────────────────────────────────────────────────────────┐
-│                    Ant Army Core System                       │
-│  (Meta-Orchestrator, Ants, Database, Queue)                  │
+│                    B'hive Core System                         │
+│  (Meta-Orchestrator, Operators, Database, Queue)             │
 └──────────────────────────────────────────────────────────────┘
 ```
 
@@ -123,9 +123,9 @@ CREATE TABLE execution_sessions (
 ALTER TABLE tasks ADD COLUMN session_id UUID REFERENCES execution_sessions(id);
 ALTER TABLE tasks ADD COLUMN commit_id TEXT;  -- Jujutsu commit ID for this task's work
 
--- Ant activity log (real-time state)
-CREATE TABLE ant_activity (
-  ant_id TEXT PRIMARY KEY,
+-- Operator activity log (real-time state)
+CREATE TABLE operator_activity (
+  operator_id TEXT PRIMARY KEY,
   status TEXT CHECK (status IN ('idle', 'claiming', 'executing', 'reviewing', 'paused')),
   current_task_id UUID REFERENCES tasks(id),
   workspace_path TEXT,
@@ -137,7 +137,7 @@ CREATE TABLE ant_activity (
   metadata JSONB
 );
 
-CREATE INDEX idx_ant_activity_status ON ant_activity(status);
+CREATE INDEX idx_operator_activity_status ON operator_activity(status);
 ```
 
 **Key Simplification:**
@@ -156,7 +156,7 @@ import WebSocket from "ws"
 
 interface DashboardState {
   session: ExecutionSession
-  activeAnts: AntActivity[]
+  activeOperators: OperatorActivity[]
   taskGraph: TaskGraph
   recentEvents: Event[]
   metrics: Metrics
@@ -182,15 +182,15 @@ class RealtimeMonitor {
 
   // Get current system state
   async getCurrentState(sessionId: string): Promise<DashboardState> {
-    const [session, activeAnts, taskGraph, recentEvents, metrics] = await Promise.all([
+    const [session, activeOperators, taskGraph, recentEvents, metrics] = await Promise.all([
       this.getSession(sessionId),
-      this.getActiveAnts(sessionId),
+      this.getActiveOperators(sessionId),
       this.getTaskGraph(sessionId),
       this.getRecentEvents(sessionId, 10),
       this.getMetrics(sessionId),
     ])
 
-    return { session, activeAnts, taskGraph, recentEvents, metrics }
+    return { session, activeOperators, taskGraph, recentEvents, metrics }
   }
 
   // Pause execution
@@ -205,14 +205,14 @@ class RealtimeMonitor {
       [sessionId],
     )
 
-    // 2. Signal ants to stop claiming new tasks
+    // 2. Signal operators to stop claiming new tasks
     // (they finish current task, then go idle)
     await this.db.query(
       `
-      UPDATE ant_activity
+      UPDATE operator_activity
       SET status = 'paused'
-      WHERE ant_id IN (
-        SELECT ant_id FROM tasks
+      WHERE operator_id IN (
+        SELECT operator_id FROM tasks
         WHERE session_id = $1
       )
     `,
@@ -237,8 +237,8 @@ class RealtimeMonitor {
     await this.queueManager.resume()
   }
 
-  // Get detailed ant state
-  async getAntDetails(antId: string): Promise<AntDetails> {
+  // Get detailed operator state
+  async getOperatorDetails(operatorId: string): Promise<OperatorDetails> {
     const result = await this.db.query(
       `
       SELECT
@@ -304,7 +304,7 @@ class RealtimeMonitor {
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│  Ant Army - Session: "Add JWT Authentication"              │
+│  B'hive - Session: "Add JWT Authentication"                │
 ├─────────────────────────────────────────────────────────────┤
 │                                                             │
 │  Status: 🟢 Running    Progress: ████████░░░░ 75%          │
@@ -952,30 +952,30 @@ Defer:
 **Basic CLI Monitoring (Phase 1):**
 
 ```bash
-$ ant-army status
+$ bhive status
 
-Ant Army - Session: Add JWT Authentication
+B'hive - Session: Add JWT Authentication
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 Status: 🟢 Running        Progress: ████████░░░░ 75%
 
 Tasks:  24 total  │  18 ✅  │  4 🚀  │  2 ⏳
-Ants:   12 active │  10 busy │  2 idle
+Ops:    12 active │  10 busy │  2 idle
 Cost:   $0.18     │  Duration: 2m 34s
 
-Active Ants:
-  🐜 Ant #1  [Dev]     Task: "Create JWT middleware"      45%  abc123d
-  🐜 Ant #5  [Dev]     Task: "Write unit tests"           80%  def456a
-  🐜 Ant #8  [Review]  Task: "Review token generation"    20%  (no commit yet)
+Active Operators:
+  🐝 Op #1   [Dev]     Task: "Create JWT middleware"      45%  abc123d
+  🐝 Op #5   [Dev]     Task: "Write unit tests"           80%  def456a
+  🐝 Op #8   [Review]  Task: "Review token generation"    20%  (no commit yet)
 
 Recent Events:
-  14:23:45  ✅ Task "Generate JWT utils" completed (Ant #3) → 789abc1
-  14:23:44  🚀 Task "Write tests" claimed by Ant #5
+  14:23:45  ✅ Task "Generate JWT utils" completed (Op #3) → 789abc1
+  14:23:44  🚀 Task "Write tests" claimed by Op #5
   14:23:42  ⚠️  Task "Add auth routes" failed, retrying
 
 Commands:
-  ant-army pause    - Pause execution
-  ant-army resume   - Resume execution
-  ant-army logs     - Show detailed event log
+  bhive pause    - Pause execution
+  bhive resume   - Resume execution
+  bhive logs     - Show detailed event log
 
 To inspect changes: jj show <commit-id>
 ```

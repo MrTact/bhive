@@ -1,4 +1,4 @@
-# Ant Army - Phase 1 Implementation Plan
+# B'hive - Phase 1 Implementation Plan
 
 > [!IMPORTANT]
 > **Architecture Change (February 2026):** This document contains outdated references to OpenCode. The current implementation approach is a **Rust headless service** built from scratch. See [HEADLESS_ARCHITECTURE.md](HEADLESS_ARCHITECTURE.md) and [COORDINATION_LAYER_RUST.md](COORDINATION_LAYER_RUST.md) for the current plan.
@@ -23,7 +23,7 @@ See [HEADLESS_ARCHITECTURE.md](HEADLESS_ARCHITECTURE.md) for the authoritative i
 - Worker spawning (Tokio tasks)
 - Cross-provider routing
 - SSE streaming for task events
-- Simple CLI client (`ant-army` command)
+- Simple CLI client (`bhive` command)
 
 **Phase 2A: VSCode Extension (2-3 weeks)**
 - Native IDE integration
@@ -37,16 +37,16 @@ See [HEADLESS_ARCHITECTURE.md](HEADLESS_ARCHITECTURE.md) for the authoritative i
 
 ```
 crates/
-├─ ant-army-core/       # Core types, coordination, agent definitions
-│   ├─ agent/           # Queen, ant-operator, ant-review, ant-integration
+├─ bhive-core/          # Core types, coordination, agent definitions
+│   ├─ agent/           # Queen, operator, review, integration
 │   ├─ coordination/    # PostgreSQL-based task coordination
 │   ├─ vcs/             # Abstract VCS interface + Jujutsu implementation
 │   ├─ task/            # Decomposition and DAG management
 │   ├─ memory/          # LEGOMem pattern storage (Qdrant)
 │   └─ routing/         # Intelligent model selection
-├─ ant-army-api/        # Axum REST/WebSocket API server
-├─ ant-army-cli/        # CLI client
-└─ ant-army-llm/        # Rig + rust-genai integration
+├─ bhive-api/           # Axum REST/WebSocket API server
+├─ bhive-cli/           # CLI client
+└─ bhive-llm/           # Rig + rust-genai integration
 ```
 
 **See [COORDINATION_LAYER_RUST.md](COORDINATION_LAYER_RUST.md) for detailed Rust implementation plan.**
@@ -58,7 +58,7 @@ crates/
 - **PostgreSQL coordination:** Task state in database for atomic operations (see [COORDINATION_LAYER_RUST.md](COORDINATION_LAYER_RUST.md))
 - **100 concurrent workers:** Target for Phase 1 MVP
 - **CLI client:** Dogfood via command line immediately
-- **Jujutsu primary:** Each ant gets a named workspace, commits tracked by ID, bookmarks prevent GC
+- **Jujutsu primary:** Each operator gets a named workspace, commits tracked by ID, bookmarks prevent GC
 
 ---
 
@@ -74,10 +74,10 @@ crates/
 1. **Fork OpenCode repository**
 
    ```bash
-   git clone https://github.com/openhands/opencode.git ant-army
-   cd ant-army
+   git clone https://github.com/openhands/opencode.git bhive
+   cd bhive
    git remote rename origin opencode-upstream
-   git remote add origin https://github.com/your-org/ant-army.git
+   git remote add origin https://github.com/your-org/bhive.git
    ```
 
 2. **Study OpenCode architecture**
@@ -89,7 +89,7 @@ crates/
    - Understand TUI framework (`cli/cmd/tui/`)
    - Document extension points
 
-3. **Create Ant Army extension plan**
+3. **Create B'hive extension plan**
    - Identify which modules to extend vs create new
    - Document interfaces to implement
    - Create module dependency graph
@@ -1891,17 +1891,17 @@ Store successful pattern in LEGOMem.
 1. **Extend OpenTUI with multi-agent view:**
 
 ```typescript
-// /packages/opencode/src/cli/cmd/tui/component/ant-army-dashboard.tsx (NEW)
+// /packages/opencode/src/cli/cmd/tui/component/bhive-dashboard.tsx (NEW)
 import { Show, For } from 'solid-js'
 import { Box, Text } from '@opentui/solid'
-import { useAntArmyStatus } from '../hooks/use-ant-army-status'
+import { useBhiveStatus } from '../hooks/use-bhive-status'
 
-export function AntArmyDashboard() {
-  const status = useAntArmyStatus()  // Hook queries coordinator
+export function BhiveDashboard() {
+  const status = useBhiveStatus()  // Hook queries coordinator
 
   return (
     <Box flexDirection="column">
-      <Text bold>Ant Army - Multi-Agent Orchestration</Text>
+      <Text bold>B'hive - Multi-Agent Orchestration</Text>
       <Text>━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</Text>
 
       <Box marginY={1}>
@@ -1911,15 +1911,15 @@ export function AntArmyDashboard() {
 
       <Box marginY={1}>
         <Text>Tasks: {status.totalTasks} total | {status.completedTasks} ✅ | {status.activeTasks} 🚀 | {status.pendingTasks} ⏳</Text>
-        <Text>Ants: {status.activeAnts} active</Text>
+        <Text>Operators: {status.activeOperators} active</Text>
       </Box>
 
       <Box marginY={1}>
-        <Text bold>Active Ants:</Text>
-        <Show when={status.ants.length > 0}>
-          <For each={status.ants}>
-            {ant => (
-              <Text>  🐜 {ant.sessionId} [{ant.antType}] - {ant.taskDescription}</Text>
+        <Text bold>Active Operators:</Text>
+        <Show when={status.operators.length > 0}>
+          <For each={status.operators}>
+            {op => (
+              <Text>  🐝 {op.sessionId} [{op.operatorType}] - {op.taskDescription}</Text>
             )}
           </For>
         </Show>
@@ -1932,12 +1932,12 @@ export function AntArmyDashboard() {
 2. **Add hook to query coordinator:**
 
 ```typescript
-// /packages/opencode/src/cli/cmd/tui/hooks/use-ant-army-status.ts (NEW)
+// /packages/opencode/src/cli/cmd/tui/hooks/use-bhive-status.ts (NEW)
 import { createSignal, onCleanup } from "solid-js"
 import { getTaskCoordinator } from "../../../../task/coordinator"
 import { SessionManager } from "../../../../session/manager"
 
-export function useAntArmyStatus() {
+export function useBhiveStatus() {
   const [status, setStatus] = createSignal({
     sessionStatus: "running",
     progress: 0,
@@ -1945,8 +1945,8 @@ export function useAntArmyStatus() {
     completedTasks: 0,
     activeTasks: 0,
     pendingTasks: 0,
-    activeAnts: 0,
-    ants: [],
+    activeOperators: 0,
+    operators: [],
   })
 
   // Poll coordinator every 1 second
@@ -1958,13 +1958,13 @@ export function useAntArmyStatus() {
     const allTasks = await coordinator.getAllTasks()
     const activeTasks = allTasks.filter((t) => t.status === "in_progress" || t.status === "claimed")
 
-    // Get ant details
-    const ants = await Promise.all(
+    // Get operator details
+    const operators = await Promise.all(
       activeTasks.map(async (task) => {
         const session = await sessionManager.getSession(task.sessionId!)
         return {
           sessionId: task.sessionId,
-          antType: session?.role,
+          operatorType: session?.role,
           taskDescription: task.description,
         }
       }),
@@ -1979,8 +1979,8 @@ export function useAntArmyStatus() {
       completedTasks: taskStatus.completed,
       activeTasks: taskStatus.in_progress + taskStatus.claimed,
       pendingTasks: taskStatus.pending,
-      activeAnts: ants.length,
-      ants,
+      activeOperators: operators.length,
+      operators,
     })
   }, 1000)
 
@@ -1994,8 +1994,8 @@ export function useAntArmyStatus() {
 
 ```typescript
 // /packages/opencode/src/cli/cmd/tui/app.tsx (EXTEND)
-// Add AntArmyDashboard component to TUI layout
-// Show when ant-army is enabled in config
+// Add BhiveDashboard component to TUI layout
+// Show when bhive is enabled in config
 ```
 
 **Acceptance Criteria:**
@@ -2004,7 +2004,7 @@ export function useAntArmyStatus() {
 - ✅ Shows real-time task and ant status
 - ✅ Updates every second
 - ✅ Integrated into OpenCode TUI
-- ✅ Works with multiple concurrent ants
+- ✅ Works with multiple concurrent operators
 
 ---
 
@@ -2052,10 +2052,10 @@ export function useAntArmyStatus() {
 - [x] Git VCS integration works (fallback)
 - [ ] Queen and ant agents defined and functional
 - [ ] Task decomposition works (< 500 token contexts)
-- [ ] 10-20 ants execute in parallel
-- [ ] Operator ants generate valid code
-- [ ] Review ants provide feedback
-- [ ] Integration ants merge changes
+- [ ] 10-20 operators execute in parallel
+- [ ] Operator agents generate valid code
+- [ ] Review operators provide feedback
+- [ ] Integration operators merge changes
 - [ ] PostgreSQL coordination layer handles concurrency (see [COORDINATION_LAYER.md](COORDINATION_LAYER.md))
 - [ ] LEGOMem stores and retrieves patterns
 - [ ] Model routing selects appropriate models
@@ -2094,7 +2094,7 @@ export function useAntArmyStatus() {
 ### Secondary Metrics
 
 1. **Review Effectiveness:** >50% issue detection
-2. **Ant Concurrency:** Handle 10-20 concurrent ants without issues
+2. **Operator Concurrency:** Handle 10-20 concurrent operators without issues
 
 ---
 
@@ -2119,7 +2119,7 @@ export function useAntArmyStatus() {
 
 After Phase 1 MVP:
 
-1. **Scale to 50-100 ants**
+1. **Scale to 50-100 operators**
 2. ~~**Add PostgreSQL + Bull** (replace in-memory coordination)~~ → Done in Phase 1 (see [COORDINATION_LAYER.md](COORDINATION_LAYER.md))
 3. **Prompt compression** (LLMLingua, 80% reduction)
 4. **Enhanced LEGOMem** (routine templates)

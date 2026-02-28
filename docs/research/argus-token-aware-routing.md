@@ -94,7 +94,7 @@ routing_decision(task, predicted_output=280):
 
 ---
 
-## Applicability to Ant Army
+## Applicability to B'hive
 
 ### ✅ **Highly Relevant - Enhances Existing Routing**
 
@@ -203,7 +203,7 @@ Savings: $0.00528 (98% reduction)
 
 ---
 
-## Integration with Ant Army
+## Integration with B'hive
 
 ### **How It Fits:**
 

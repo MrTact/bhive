@@ -1,0 +1,142 @@
+# B'hive - Name Configuration
+#
+# Worker names are generated as: <adjective>-<noun>
+# Examples: swift-falcon, clever-badger, cosmic-phoenix
+#
+# Customize these lists to personalize your worker names.
+# With 200 adjectives × 200 nouns = 40,000 unique combinations.
+
+adjectives = [
+  # Speed & agility
+  "swift", "quick", "rapid", "fleet", "nimble", "agile", "zippy", "speedy",
+  
+  # Intelligence & wisdom
+  "clever", "wise", "smart", "keen", "astute", "sharp", "bright", "savvy",
+  "lucid", "witty",
+  
+  # Personality traits
+  "bold", "brave", "daring", "noble", "proud", "humble", "gentle", "kind",
+  "loyal", "honest", "patient", "calm", "serene", "tranquil", "steady",
+  "stoic", "earnest", "eager", "ready", "alert",
+  
+  # Strength & reliability
+  "hardy", "mighty", "strong", "robust", "solid", "stable", "tough", "iron",
+  "steel", "sturdy",
+  
+  # Mood & energy
+  "jolly", "merry", "happy", "lively", "blithe", "vivid", "vibrant", "radiant",
+  "sunny", "warm", "glad", "upbeat", "zesty",
+  
+  # Qualities
+  "fair", "grand", "great", "prime", "ideal", "pure", "true", "just", "open",
+  "frank", "plain", "simple", "neat", "trim", "crisp", "fresh", "clean",
+  
+  # Nature-inspired
+  "mossy", "leafy", "woody", "rustic", "earthy", "misty", "foggy", "dewy",
+  "frosty", "snowy", "icy", "polar", "arctic", "alpine", "coastal", "tidal",
+  
+  # Colors & materials
+  "golden", "silver", "bronze", "copper", "amber", "jade", "ruby", "pearl",
+  "onyx", "coral", "ivory", "cobalt", "scarlet", "crimson", "azure", "violet",
+  "indigo", "teal", "olive", "sage", "mint", "rose", "plum", "cherry",
+  
+  # Celestial & cosmic
+  "solar", "lunar", "stellar", "cosmic", "astral", "nebula", "orbital",
+  "galactic", "aurora",
+  
+  # Time & seasons
+  "dawn", "dusk", "twilight", "morning", "evening", "spring", "summer",
+  "autumn", "winter", "eternal", "ancient", "primal",
+  
+  # Tech & modern
+  "digital", "cyber", "binary", "pixel", "laser", "sonic", "turbo", "ultra",
+  "hyper", "mega", "nano", "quantum",
+  
+  # Textures & patterns
+  "velvet", "silk", "satin", "cotton", "linen", "woven", "braided", "spiral",
+  "striped", "dotted",
+  
+  # Weather & elements
+  "stormy", "windy", "breezy", "cloudy", "rainy", "thunder", "lightning",
+  "blazing", "glowing", "ember", "spark", "flame",
+  
+  # Misc positive
+  "lucky", "magic", "mystic", "royal", "regal", "epic", "legend", "heroic",
+  "valiant", "gallant", "worthy", "able", "active", "dynamic", "vital",
+  "vivid", "zealous", "zen",
+]
+
+nouns = [
+  # Birds of prey
+  "falcon", "hawk", "eagle", "osprey", "kite", "harrier", "condor", "vulture",
+  
+  # Other birds
+  "raven", "crow", "owl", "sparrow", "finch", "robin", "wren", "dove", "swan",
+  "goose", "duck", "pelican", "crane", "heron", "stork", "phoenix",
+  
+  # Mammals - predators
+  "wolf", "fox", "bear", "lion", "tiger", "puma", "jaguar", "panther", "lynx",
+  "leopard", "cheetah", "coyote", "jackal", "hyena",
+  
+  # Mammals - other
+  "badger", "otter", "beaver", "mink", "ferret", "weasel", "stoat", "marten",
+  "moose", "elk", "deer", "stag", "bison", "buffalo", "ox", "ram", "goat",
+  "horse", "mustang", "stallion", "mare", "zebra", "gazelle", "antelope",
+  
+  # Marine & aquatic
+  "whale", "dolphin", "shark", "orca", "seal", "walrus", "salmon", "trout",
+  "bass", "pike", "marlin", "barracuda", "manta", "squid", "octopus",
+  
+  # Reptiles & amphibians
+  "cobra", "viper", "python", "mamba", "adder", "gecko", "iguana", "dragon",
+  "turtle", "tortoise", "gator", "croc",
+  
+  # Insects
+  "ant", "bee", "wasp", "hornet", "beetle", "mantis", "cricket", "moth",
+  "butterfly", "dragonfly", "firefly", "scarab",
+  
+  # Trees
+  "oak", "maple", "birch", "cedar", "pine", "spruce", "redwood", "sequoia",
+  "willow", "aspen", "poplar", "cypress", "elm", "ash", "beech", "walnut",
+  "cherry", "apple", "palm", "bamboo",
+  
+  # Plants & flowers
+  "fern", "ivy", "moss", "sage", "mint", "basil", "thyme", "rose", "lily",
+  "lotus", "orchid", "tulip", "iris", "jasmine", "laurel", "thistle", "clover",
+  
+  # Landscapes
+  "mountain", "summit", "peak", "ridge", "cliff", "canyon", "valley", "meadow",
+  "forest", "grove", "glade", "marsh", "delta", "island", "reef", "lagoon",
+  "glacier", "tundra", "desert", "oasis", "prairie", "steppe",
+  
+  # Water features
+  "river", "stream", "brook", "creek", "rapids", "falls", "spring", "pond",
+  "lake", "ocean", "tide", "wave", "current",
+  
+  # Celestial
+  "star", "sun", "moon", "comet", "meteor", "nova", "nebula", "galaxy",
+  "quasar", "pulsar", "orbit", "eclipse", "aurora",
+  
+  # Gems & minerals
+  "diamond", "ruby", "emerald", "sapphire", "topaz", "opal", "jade", "onyx",
+  "pearl", "amber", "quartz", "crystal", "obsidian", "granite", "marble",
+  "basalt", "flint", "slate",
+  
+  # Mythical & legendary
+  "griffin", "sphinx", "hydra", "kraken", "leviathan", "titan", "colossus",
+  "sentinel", "guardian", "warden", "paladin", "champion",
+  
+  # Objects & artifacts
+  "arrow", "blade", "sword", "spear", "lance", "shield", "helm", "crown",
+  "beacon", "torch", "lantern", "compass", "anchor", "hammer", "anvil",
+  "forge", "prism", "mirror", "crystal", "orb", "scepter", "rune", "sigil",
+  
+  # Structures
+  "tower", "castle", "citadel", "fortress", "bastion", "rampart", "keep",
+  "temple", "shrine", "monument", "pillar", "arch", "bridge", "gate",
+  "harbor", "haven", "nexus", "vault",
+  
+  # Weather & elements
+  "storm", "thunder", "lightning", "blizzard", "tempest", "gale", "cyclone",
+  "frost", "ember", "flame", "spark", "flash", "bolt",
+]

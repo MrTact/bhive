@@ -1,10 +1,10 @@
 [workspace]
 members = [
-    "crates/ant-army-core",
-    "crates/ant-army-api",
-    "crates/ant-army-cli",
-    "crates/ant-army-queen",
-    "crates/ant-army-worker",
+    "crates/bhive-core",
+    "crates/bhive-api",
+    "crates/bhive-cli",
+    "crates/bhive-queen",
+    "crates/bhive-worker",
 ]
 resolver = "2"
 

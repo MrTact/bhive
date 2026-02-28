@@ -1,8 +1,8 @@
 # Coordination Layer - Rust Implementation Plan
 
-**Status:** Authoritative design document for Ant Army coordination layer
+**Status:** Authoritative design document for B'hive coordination layer
 
-**Goal:** PostgreSQL-backed coordination for atomic task operations, ant lifecycle management, and cross-provider model routing.
+**Goal:** PostgreSQL-backed coordination for atomic task operations, operator lifecycle management, and cross-provider model routing.
 
 ---
 
@@ -14,13 +14,13 @@
 │  • Decomposes requests into task DAG           │
 │  • Pre-creates ALL tasks with dependencies     │
 │  • Subscribes to LISTEN/NOTIFY                  │
-│  • Spawns ants for ready tasks                  │
+│  • Spawns operators for ready tasks             │
 └─────────────────┬───────────────────────────────┘
                   │
                   ▼
 ┌─────────────────────────────────────────────────┐
 │  PostgreSQL Coordination Database               │
-│  • ants table (lifecycle tracking)              │
+│  • operators table (lifecycle tracking)         │
 │  • tasks table (task queue + dependencies)      │
 │  • task_dependencies table (DAG)                │
 │  • logs table (observability)                   │
@@ -30,7 +30,7 @@
     ┌─────────────┼─────────────┬─────────────┐
     ▼             ▼             ▼             ▼
 ┌────────┐  ┌────────┐  ┌────────┐  ┌────────┐
-│ ant-op │  │ ant-op │  │ant-rev │  │ant-mrg │
+│ op-dev │  │ op-dev │  │ op-rev │  │ op-mrg │
 │  -7f2b │  │  -9a3c │  │  -4d1e │  │  -2b8f │
 └────────┘  └────────┘  └────────┘  └────────┘
 ```
@@ -41,20 +41,20 @@
 
 ### Problem: Multiple Projects Simultaneously
 
-If a user runs `ant-army` in `/proj-A` and `/proj-B`:
+If a user runs `bhive` in `/proj-A` and `/proj-B`:
 - Tasks from different projects must not collide
 - Each project needs its own coordination state
 - Infrastructure should be shared for simplicity
 
 ### Solution: Shared Infrastructure, Separate Namespaces
 
-**One Docker Compose stack** at `~/.config/ant-army/` serves all projects:
+**One Docker Compose stack** at `~/.config/bhive/` serves all projects:
 - **PostgreSQL**: One instance, multiple databases (one per project)
 - **Qdrant** (Phase 2): One instance, multiple collections (one per project)
 - **Redis** (Phase 3): One instance, key prefixes per project
 
 ```
-~/.config/ant-army/                  # Global infrastructure
+~/.config/bhive/                     # Global infrastructure
 ├── docker-compose.yml               # Shared stack (Postgres, Qdrant, Redis)
 ├── data/
 │   ├── postgres/                    # All project databases here
@@ -65,13 +65,13 @@ If a user runs `ant-army` in `/proj-A` and `/proj-B`:
 
 project-a/
 ├── .config/
-│   └── ant-army/
+│   └── bhive/
 │       └── connection.env           # DB_URL, project_id, etc.
 └── src/
 
 project-b/
 ├── .config/
-│   └── ant-army/
+│   └── bhive/
 │       └── connection.env
 └── src/
 ```
@@ -88,12 +88,12 @@ project-b/
 ### Project Registry
 
 ```toml
-# ~/.config/ant-army/projects.toml
+# ~/.config/bhive/projects.toml
 [projects]
 
 [projects.project_a]
 path = "/Users/tkeating/projects/project-a"
-db_name = "ant_army_project_a"
+db_name = "bhive_project_a"
 qdrant_collection = "legomem_project_a"
 redis_prefix = "proj_a"
 created_at = "2026-02-18T10:00:00Z"
@@ -101,7 +101,7 @@ last_seen = "2026-02-18T15:30:00Z"
 
 [projects.project_b]
 path = "/Users/tkeating/projects/project-b"
-db_name = "ant_army_project_b"
+db_name = "bhive_project_b"
 qdrant_collection = "legomem_project_b"
 redis_prefix = "proj_b"
 created_at = "2026-02-16T09:00:00Z"
@@ -113,12 +113,12 @@ last_seen = "2026-02-18T14:00:00Z"
 Projects are identified by a stable hash of their absolute path:
 
 ```rust
-// crates/ant-army-core/src/project.rs
+// crates/bhive-core/src/project.rs
 pub struct ProjectConfig {
     pub project_root: PathBuf,
     pub project_id: String,        // e.g., "project_a" (stable hash)
-    pub db_name: String,            // e.g., "ant_army_project_a"
-    pub db_url: String,             // e.g., "postgresql://...@localhost:5432/ant_army_project_a"
+    pub db_name: String,            // e.g., "bhive_project_a"
+    pub db_url: String,             // e.g., "postgresql://...@localhost:5432/bhive_project_a"
     pub qdrant_collection: String,  // e.g., "legomem_project_a"
     pub redis_prefix: String,       // e.g., "proj_a:"
 }
@@ -141,42 +141,42 @@ impl ProjectConfig {
 
 ## Setup Flow
 
-### Command: `ant-army init`
+### Command: `bhive init`
 
 ```bash
 # First project - creates shared infrastructure
 cd /Users/tkeating/projects/project-a
-ant-army init
+bhive init
 
 # Output:
-# ✓ Created ~/.config/ant-army/ (global infrastructure)
+# ✓ Created ~/.config/bhive/ (global infrastructure)
 # ✓ Generated docker-compose.yml
 # ✓ Starting services...
 #   - PostgreSQL (port 5432)
-# ✓ Created database: ant_army_project_a
+# ✓ Created database: bhive_project_a
 # ✓ Ran migrations
-# ✓ Registered project in ~/.config/ant-army/projects.toml
-# ✓ Created .config/ant-army/connection.env
+# ✓ Registered project in ~/.config/bhive/projects.toml
+# ✓ Created .config/bhive/connection.env
 #
-# Infrastructure ready! Run 'ant-army start' to begin.
+# Infrastructure ready! Run 'bhive start' to begin.
 
 # Second project - reuses existing infrastructure
 cd /Users/tkeating/projects/project-b
-ant-army init
+bhive init
 
 # Output:
-# ✓ Detected existing infrastructure at ~/.config/ant-army/
-# ✓ Created database: ant_army_project_b
+# ✓ Detected existing infrastructure at ~/.config/bhive/
+# ✓ Created database: bhive_project_b
 # ✓ Ran migrations
 # ✓ Registered project
-# ✓ Created .config/ant-army/connection.env
+# ✓ Created .config/bhive/connection.env
 #
-# Project ready! Run 'ant-army start' to begin.
+# Project ready! Run 'bhive start' to begin.
 ```
 
 ### Generated Files
 
-#### `~/.config/ant-army/docker-compose.yml` (Global, Shared)
+#### `~/.config/bhive/docker-compose.yml` (Global, Shared)
 
 ```yaml
 version: '3.8'
@@ -184,16 +184,16 @@ version: '3.8'
 services:
   postgres:
     image: postgres:16-alpine
-    container_name: ant-army-postgres
+    container_name: bhive-postgres
     environment:
-      POSTGRES_USER: ant_army
+      POSTGRES_USER: bhive
       POSTGRES_PASSWORD: dev_password  # TODO: generate secure password
     ports:
       - "5432:5432"
     volumes:
       - ./data/postgres:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ant_army"]
+      test: ["CMD-SHELL", "pg_isready -U bhive"]
       interval: 5s
       timeout: 5s
       retries: 5
@@ -202,7 +202,7 @@ services:
   # Phase 2: Vector DB for LEGOMem
   qdrant:
     image: qdrant/qdrant:latest
-    container_name: ant-army-qdrant
+    container_name: bhive-qdrant
     ports:
       - "6333:6333"
     volumes:
@@ -212,7 +212,7 @@ services:
   # Phase 3: Redis for caching (optional)
   redis:
     image: redis:7-alpine
-    container_name: ant-army-redis
+    container_name: bhive-redis
     ports:
       - "6379:6379"
     volumes:
@@ -220,11 +220,11 @@ services:
     restart: unless-stopped
 ```
 
-#### `project-a/.config/ant-army/connection.env` (Per-Project)
+#### `project-a/.config/bhive/connection.env` (Per-Project)
 
 ```bash
 PROJECT_ID=project_a
-DATABASE_URL=postgresql://ant_army:dev_password@localhost:5432/ant_army_project_a
+DATABASE_URL=postgresql://bhive:dev_password@localhost:5432/bhive_project_a
 QDRANT_URL=http://localhost:6333
 QDRANT_COLLECTION=legomem_project_a
 REDIS_URL=redis://localhost:6379
@@ -232,7 +232,7 @@ REDIS_PREFIX=proj_a:
 PROJECT_ROOT=/Users/tkeating/projects/project-a
 ```
 
-#### `project-a/.config/ant-army/.gitignore`
+#### `project-a/.config/bhive/.gitignore`
 
 ```
 connection.env
@@ -245,7 +245,7 @@ connection.env
 ### List Projects
 
 ```bash
-ant-army projects list
+bhive projects list
 
 # Output:
 # Registered Projects:
@@ -259,7 +259,7 @@ ant-army projects list
 ### Doctor (Sanity Check)
 
 ```bash
-ant-army doctor
+bhive doctor
 
 # Output:
 # Checking infrastructure...
@@ -268,31 +268,31 @@ ant-army doctor
 # ✓ Redis running (version 7.2.3)
 #
 # Checking databases...
-#   ✓ ant_army_project_a -> /Users/tkeating/projects/project-a
-#   ✓ ant_army_project_b -> /Users/tkeating/projects/project-b
-#   ⚠ ant_army_project_c -> /Users/tkeating/old/project-c (directory not found)
+#   ✓ bhive_project_a -> /Users/tkeating/projects/project-a
+#   ✓ bhive_project_b -> /Users/tkeating/projects/project-b
+#   ⚠ bhive_project_c -> /Users/tkeating/old/project-c (directory not found)
 #
 # Checking Qdrant collections...
 #   ✓ legomem_project_a (5.2 MB, 1,234 vectors)
 #   ✓ legomem_project_b (2.1 MB, 456 vectors)
 #   ⚠ legomem_project_c (8.7 MB, directory not found)
 #
-# Found 1 orphaned project. Run 'ant-army cleanup orphaned' to remove.
+# Found 1 orphaned project. Run 'bhive cleanup orphaned' to remove.
 ```
 
 ### Cleanup Orphaned Data
 
 ```bash
-ant-army cleanup orphaned
+bhive cleanup orphaned
 
 # Output:
 # Found orphaned data for: project-c
-#   Database: ant_army_project_c (15.3 MB)
+#   Database: bhive_project_c (15.3 MB)
 #   Qdrant collection: legomem_project_c (8.7 MB)
 #   Original path: /Users/tkeating/old/project-c (not found)
 #
 # Delete this data? [y/N]: y
-# ✓ Dropped database ant_army_project_c
+# ✓ Dropped database bhive_project_c
 # ✓ Deleted collection legomem_project_c
 # ✓ Removed from registry
 #
@@ -304,10 +304,10 @@ ant-army cleanup orphaned
 ```bash
 # From within project
 cd /Users/tkeating/projects/project-a
-ant-army unregister
+bhive unregister
 
 # Or specify path
-ant-army unregister /Users/tkeating/projects/project-a
+bhive unregister /Users/tkeating/projects/project-a
 
 # Output:
 # Unregistering project-a...
@@ -320,16 +320,16 @@ ant-army unregister /Users/tkeating/projects/project-a
 ### Cleanup Specific Project
 
 ```bash
-ant-army cleanup project /Users/tkeating/projects/project-a
+bhive cleanup project /Users/tkeating/projects/project-a
 
 # Output:
 # ⚠ This will DELETE all data for project-a:
-#   - Database: ant_army_project_a (10.5 MB)
+#   - Database: bhive_project_a (10.5 MB)
 #   - Qdrant collection: legomem_project_a (5.2 MB)
 #   - Registry entry
 #
 # This cannot be undone. Continue? [y/N]: y
-# ✓ Dropped database ant_army_project_a
+# ✓ Dropped database bhive_project_a
 # ✓ Deleted collection legomem_project_a
 # ✓ Removed from registry
 #
@@ -341,32 +341,32 @@ ant-army cleanup project /Users/tkeating/projects/project-a
 ```bash
 # User moves /old/location/project-a to /new/location/project-a
 cd /new/location/project-a
-ant-army init
+bhive init
 
 # Output:
-# ⚠ Found existing database 'ant_army_project_a' registered to:
+# ⚠ Found existing database 'bhive_project_a' registered to:
 #   /old/location/project-a (directory not found)
 #
 # This appears to be the same project. Update registration? [Y/n]: y
 # ✓ Updated project-a -> /new/location/project-a
 # ✓ Updated connection.env
 #
-# Project ready! Run 'ant-army start' to begin.
+# Project ready! Run 'bhive start' to begin.
 ```
 
 ### Automatic Checks on Startup
 
-Every time `ant-army` runs in a project:
+Every time `bhive` runs in a project:
 1. Updates `last_seen` timestamp in registry
 2. Checks for orphaned projects (non-blocking warning)
 
 ```bash
 cd /Users/tkeating/projects/project-a
-ant-army start
+bhive start
 
 # Output:
 # ⚠ Warning: 1 orphaned project found
-#   Run 'ant-army doctor' for details
+#   Run 'bhive doctor' for details
 #
 # Starting queen agent...
 ```
@@ -378,13 +378,13 @@ ant-army start
 ### Tables
 
 ```sql
--- crates/ant-army-api/migrations/001_initial_schema.sql
+-- crates/bhive-api/migrations/001_initial_schema.sql
 
--- Ant lifecycle tracking
-CREATE TABLE ants (
-  id TEXT PRIMARY KEY,              -- e.g., 'ant-operator-7f2b'
-  ant_type TEXT NOT NULL
-    CHECK (ant_type IN ('ant-operator', 'ant-review', 'ant-merge')),
+-- Operator lifecycle tracking
+CREATE TABLE operators (
+  id TEXT PRIMARY KEY,              -- e.g., 'op-dev-7f2b'
+  operator_type TEXT NOT NULL
+    CHECK (operator_type IN ('op-dev', 'op-review', 'op-merge')),
   status TEXT NOT NULL DEFAULT 'idle'
     CHECK (status IN ('idle', 'active', 'failed')),
 
@@ -401,7 +401,7 @@ CREATE TABLE ants (
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
-CREATE INDEX idx_ants_status_type ON ants(status, ant_type);
+CREATE INDEX idx_operators_status_type ON operators(status, operator_type);
 
 -- Task coordination
 CREATE TABLE tasks (
@@ -502,45 +502,45 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- Get or create an idle ant
-CREATE OR REPLACE FUNCTION acquire_ant(p_ant_type TEXT)
+-- Get or create an idle operator
+CREATE OR REPLACE FUNCTION acquire_operator(p_operator_type TEXT)
 RETURNS TEXT AS $$
 DECLARE
-  v_ant_id TEXT;
+  v_operator_id TEXT;
 BEGIN
-  -- Try to claim existing idle ant
-  UPDATE ants
+  -- Try to claim existing idle operator
+  UPDATE operators
   SET status = 'active', last_active_at = NOW()
   WHERE id = (
-    SELECT id FROM ants
-    WHERE status = 'idle' AND ant_type = p_ant_type
+    SELECT id FROM operators
+    WHERE status = 'idle' AND operator_type = p_operator_type
     LIMIT 1
     FOR UPDATE SKIP LOCKED
   )
-  RETURNING id INTO v_ant_id;
+  RETURNING id INTO v_operator_id;
 
-  -- If none idle, create new ant
-  IF v_ant_id IS NULL THEN
-    v_ant_id := p_ant_type || '-' || substr(md5(random()::text), 1, 4);
-    INSERT INTO ants (id, ant_type, status, last_active_at)
-    VALUES (v_ant_id, p_ant_type, 'active', NOW());
+  -- If none idle, create new operator
+  IF v_operator_id IS NULL THEN
+    v_operator_id := p_operator_type || '-' || substr(md5(random()::text), 1, 4);
+    INSERT INTO operators (id, operator_type, status, last_active_at)
+    VALUES (v_operator_id, p_operator_type, 'active', NOW());
   END IF;
 
-  RETURN v_ant_id;
+  RETURN v_operator_id;
 END;
 $$ LANGUAGE plpgsql;
 
--- Release ant back to idle
-CREATE OR REPLACE FUNCTION release_ant(p_ant_id TEXT)
+-- Release operator back to idle
+CREATE OR REPLACE FUNCTION release_operator(p_operator_id TEXT)
 RETURNS VOID AS $$
 BEGIN
-  UPDATE ants
+  UPDATE operators
   SET status = 'idle',
       current_task_id = NULL,
       current_session_id = NULL,
       tasks_completed = tasks_completed + 1,
       last_active_at = NOW()
-  WHERE id = p_ant_id;
+  WHERE id = p_operator_id;
 END;
 $$ LANGUAGE plpgsql;
 ```
@@ -555,7 +555,7 @@ BEGIN
   IF TG_OP = 'INSERT' AND NEW.status = 'pending' THEN
     PERFORM pg_notify('task_ready', json_build_object(
       'task_id', NEW.id,
-      'ant_type', NEW.ant_type
+      'operator_type', NEW.operator_type
     )::text);
   END IF;
 
@@ -573,23 +573,23 @@ CREATE TRIGGER task_status_notify
 AFTER INSERT OR UPDATE OF status ON tasks
 FOR EACH ROW EXECUTE FUNCTION notify_task_ready();
 
--- Notify when ant becomes idle
-CREATE OR REPLACE FUNCTION notify_ant_idle()
+-- Notify when operator becomes idle
+CREATE OR REPLACE FUNCTION notify_operator_idle()
 RETURNS TRIGGER AS $$
 BEGIN
   IF OLD.status = 'active' AND NEW.status = 'idle' THEN
-    PERFORM pg_notify('ant_idle', json_build_object(
-      'ant_id', NEW.id,
-      'ant_type', NEW.ant_type
+    PERFORM pg_notify('operator_idle', json_build_object(
+      'operator_id', NEW.id,
+      'operator_type', NEW.operator_type
     )::text);
   END IF;
   RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
 
-CREATE TRIGGER ant_status_notify
-AFTER UPDATE OF status ON ants
-FOR EACH ROW EXECUTE FUNCTION notify_ant_idle();
+CREATE TRIGGER operator_status_notify
+AFTER UPDATE OF status ON operators
+FOR EACH ROW EXECUTE FUNCTION notify_operator_idle();
 ```
 
 ---
@@ -613,7 +613,7 @@ sqlx = { version = "0.8", features = [
 ### Core Types
 
 ```rust
-// crates/ant-army-core/src/coordination/mod.rs
+// crates/bhive-core/src/coordination/mod.rs
 
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
@@ -625,29 +625,29 @@ pub mod coordinator;
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, sqlx::Type)]
 #[sqlx(type_name = "text", rename_all = "kebab-case")]
-pub enum AntType {
-    #[sqlx(rename = "ant-operator")]
-    Operator,
-    #[sqlx(rename = "ant-review")]
+pub enum OperatorType {
+    #[sqlx(rename = "op-dev")]
+    Dev,
+    #[sqlx(rename = "op-review")]
     Review,
-    #[sqlx(rename = "ant-merge")]
+    #[sqlx(rename = "op-merge")]
     Merge,
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, sqlx::Type)]
 #[sqlx(type_name = "text")]
 #[serde(rename_all = "lowercase")]
-pub enum AntStatus {
+pub enum OperatorStatus {
     Idle,
     Active,
     Failed,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, sqlx::FromRow)]
-pub struct Ant {
+pub struct Operator {
     pub id: String,
-    pub ant_type: AntType,
-    pub status: AntStatus,
+    pub operator_type: OperatorType,
+    pub status: OperatorStatus,
     pub workspace_path: Option<String>,
     pub current_task_id: Option<String>,
     pub current_session_id: Option<String>,
@@ -672,11 +672,11 @@ pub struct Task {
     pub id: String,
     pub parent_id: Option<String>,
     pub status: TaskStatus,
-    pub ant_type: AntType,
+    pub operator_type: OperatorType,
     pub context: String,
     pub model: String,
     pub model_provider: String,
-    pub assigned_ant: Option<String>,
+    pub assigned_operator: Option<String>,
     pub claimed_at: Option<DateTime<Utc>>,
     pub base_commit: Option<String>,
     pub result_commit: Option<String>,
@@ -691,7 +691,7 @@ pub struct Task {
 pub struct CreateTaskInput {
     pub id: String,
     pub parent_id: Option<String>,
-    pub ant_type: AntType,
+    pub operator_type: OperatorType,
     pub context: String,
     pub model: String,
     pub model_provider: String,
@@ -711,7 +711,7 @@ pub struct TaskResult {
 ### Coordinator
 
 ```rust
-// crates/ant-army-core/src/coordination/coordinator.rs
+// crates/bhive-core/src/coordination/coordinator.rs
 
 use super::*;
 use sqlx::PgPool;
@@ -947,7 +947,7 @@ impl Coordinator {
 ### LISTEN/NOTIFY Support
 
 ```rust
-// crates/ant-army-core/src/coordination/notifications.rs
+// crates/bhive-core/src/coordination/notifications.rs
 
 use sqlx::PgPool;
 use sqlx::postgres::PgListener;
@@ -1003,17 +1003,17 @@ pub async fn subscribe(pool: &PgPool) -> Result<mpsc::UnboundedReceiver<Notifica
 ### Phase 1: Setup & Schema (Week 1)
 
 - [ ] **Global infrastructure setup**
-  - [ ] Detect if `~/.config/ant-army/` exists
+  - [ ] Detect if `~/.config/bhive/` exists
   - [ ] Generate `docker-compose.yml` (Postgres, Qdrant, Redis)
   - [ ] Start Docker stack if not running
   - [ ] Create `projects.toml` registry
 
-- [ ] **Project init command** (`ant-army init`)
+- [ ] **Project init command** (`bhive init`)
   - [ ] Generate stable project ID from path
-  - [ ] Create database `ant_army_{project_id}`
+  - [ ] Create database `bhive_{project_id}`
   - [ ] Create Qdrant collection `legomem_{project_id}`
   - [ ] Generate `connection.env` in project
-  - [ ] Register project in `~/.config/ant-army/projects.toml`
+  - [ ] Register project in `~/.config/bhive/projects.toml`
   - [ ] Update `last_seen` timestamp
 
 - [ ] **Migration system** (`sqlx migrate`)
@@ -1072,34 +1072,34 @@ pub async fn subscribe(pool: &PgPool) -> Result<mpsc::UnboundedReceiver<Notifica
 ### Phase 4: Project Management (Week 2-3)
 
 - [ ] **Projects list command**
-  - [ ] `ant-army projects list` - Show all registered projects
+  - [ ] `bhive projects list` - Show all registered projects
   - [ ] Flag projects with missing directories
   - [ ] Show last_seen timestamps
 
 - [ ] **Doctor command**
-  - [ ] `ant-army doctor` - Comprehensive health check
+  - [ ] `bhive doctor` - Comprehensive health check
   - [ ] Check infrastructure services (Postgres, Qdrant, Redis)
   - [ ] Check databases vs registry
   - [ ] Check Qdrant collections vs registry
   - [ ] Report orphaned data with sizes
 
 - [ ] **Cleanup commands**
-  - [ ] `ant-army cleanup orphaned` - Remove data for missing projects
-  - [ ] `ant-army cleanup project <path>` - Remove specific project data
+  - [ ] `bhive cleanup orphaned` - Remove data for missing projects
+  - [ ] `bhive cleanup project <path>` - Remove specific project data
   - [ ] Interactive confirmation with data sizes
   - [ ] Actually drop databases and collections
 
 - [ ] **Unregister command**
-  - [ ] `ant-army unregister [path]` - Remove from registry (keep data)
+  - [ ] `bhive unregister [path]` - Remove from registry (keep data)
   - [ ] Auto-detect current project if no path given
 
 - [ ] **Moved project detection**
-  - [ ] On `ant-army init`, check for existing DB with similar name
+  - [ ] On `bhive init`, check for existing DB with similar name
   - [ ] Prompt user if project appears moved
   - [ ] Update registry with new path
 
 - [ ] **Automatic maintenance**
-  - [ ] Update `last_seen` on every `ant-army` invocation
+  - [ ] Update `last_seen` on every `bhive` invocation
   - [ ] Warn (non-blocking) about orphaned projects on startup
   - [ ] Log warnings to stderr
 
@@ -1120,19 +1120,19 @@ pub async fn subscribe(pool: &PgPool) -> Result<mpsc::UnboundedReceiver<Notifica
 
 ### Load Tests
 - [ ] 100 tasks with complex dependencies
-- [ ] 50 concurrent ants
+- [ ] 50 concurrent operators
 - [ ] Notification throughput
 
 ---
 
 ## Next Steps
 
-1. **Implement `ant-army init`** - Setup command with Docker Compose generation
+1. **Implement `bhive init`** - Setup command with Docker Compose generation
 2. **Create migrations** - SQL schema files
 3. **Build Coordinator** - Rust implementation of TypeScript coordinator
 4. **Test with 1 project** - Verify basic flow
 5. **Test with 2 projects** - Verify isolation
-6. **Integrate with Queen** - Subscribe to notifications, spawn ants
+6. **Integrate with Queen** - Subscribe to notifications, spawn operators
 
 ---
 

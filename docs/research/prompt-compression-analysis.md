@@ -1,4 +1,4 @@
-# Prompt Compression - Analysis for Ant Army
+# Prompt Compression - Analysis for B'hive
 
 **Research Date:** January 23, 2026
 **Keywords:** prompt-compression, token-optimization, cost-reduction, context-management, summarization
@@ -53,7 +53,7 @@ Compression is **automatic middleware** in the processing pipeline, not a discre
 Web Server:
 Request → [Routing] → [Auth] → [Handler] → [Compress Response] → Client
 
-Ant Army:
+B'hive:
 Task → [Orchestrator] → [Prepare Context] → [COMPRESS] → [Agent]
                               ↑
                       Automatic pipeline step
@@ -130,7 +130,7 @@ Speed: ~200ms
 LLM calls: N/A (specialized compression API)
 ```
 
-**Key insight:** Most compression in Ant Army can use extractive filtering (no LLM), making it extremely fast and cheap.
+**Key insight:** Most compression in B'hive can use extractive filtering (no LLM), making it extremely fast and cheap.
 
 ---
 
@@ -260,11 +260,11 @@ function prepareAgentContext(task, rawContext) {
 
 ---
 
-## Viability Assessment for Ant Army
+## Viability Assessment for B'hive
 
 ### ✅ **HIGH VIABILITY - Multiple Applications**
 
-Ant Army has several natural compression opportunities:
+B'hive has several natural compression opportunities:
 
 ---
 
@@ -482,7 +482,7 @@ Result: 90% compression
 
 ---
 
-## Compression Strategy for Ant Army
+## Compression Strategy for B'hive
 
 ### **Tier 1: Always Compress (High Value)**
 
@@ -679,7 +679,7 @@ Good compression: "Auth: JWT in httpOnly cookies (security)"
 
 **Category:** Cost Optimization / Context Management
 
-**Priority:** High - Multiple high-value applications across Ant Army
+**Priority:** High - Multiple high-value applications across B'hive
 
 **Start with:**
 

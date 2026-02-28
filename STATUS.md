@@ -8,8 +8,8 @@
 ### Project Structure
 
 ```
-ant-army/
-├── docs/                           # Documentation (from opencode/ant-army)
+bhive/
+├── docs/                           # Documentation (from opencode/bhive)
 │   ├── PRD.md
 │   ├── ARCHITECTURE.md
 │   ├── HEADLESS_ARCHITECTURE.md
@@ -21,18 +21,18 @@ ant-army/
 │   │   ├── README.md              # Project overview
 │   │   ├── DEVELOPMENT.md         # Dev guide
 │   │   └── crates/
-│   │       ├── ant-army-core/     # Core types (✅ Implemented)
-│   │       ├── ant-army-api/      # API server (🔨 Stub)
-│   │       ├── ant-army-cli/      # CLI client (🔨 Stub)
-│   │       ├── ant-army-queen/    # Queen agent (⏳ TODO)
-│   │       └── ant-army-worker/   # Worker ant (⏳ TODO)
+│   │       ├── bhive-core/     # Core types (✅ Implemented)
+│   │       ├── bhive-api/      # API server (🔨 Stub)
+│   │       ├── bhive-cli/      # CLI client (🔨 Stub)
+│   │       ├── bhive-queen/    # Queen agent (⏳ TODO)
+│   │       └── bhive-worker/   # Worker bee (⏳ TODO)
 │   └── workspaces/                 # For dogfooding
 └── README.md                       # Top-level overview
 ```
 
 ### Crate Status
 
-#### ✅ ant-army-core (Implemented)
+#### ✅ bhive-core (Implemented)
 **Purpose:** Core types and orchestration logic
 
 **Files Created:**
@@ -45,12 +45,12 @@ ant-army/
 
 **Key Types:**
 - `Task` - Represents a task with description, files, status, providers
-- `Worker` - Worker ant executing a subtask
+- `Worker` - Worker bee executing a subtask
 - `Subtask` - Decomposed unit of work
 - `CreateTaskRequest` - API request type
 - `WorkerEvent` - SSE event types
 
-#### 🔨 ant-army-api (Stub Implemented)
+#### 🔨 bhive-api (Stub Implemented)
 **Purpose:** REST/WebSocket API server
 
 **Files Created:**
@@ -69,7 +69,7 @@ ant-army/
 
 **Status:** Compiles and runs, but returns stubs/not-implemented
 
-#### 🔨 ant-army-cli (Stub Implemented)
+#### 🔨 bhive-cli (Stub Implemented)
 **Purpose:** Command-line client
 
 **Files Created:**
@@ -81,24 +81,24 @@ ant-army/
 
 **Commands Defined:**
 ```bash
-ant-army task create <description> [--files ...] [--max-workers N]
-ant-army task status <task-id>
-ant-army task watch <task-id>
-ant-army task list
-ant-army workers list
-ant-army workers status <worker-id>
-ant-army queen status
+bhive task create <description> [--files ...] [--max-workers N]
+bhive task status <task-id>
+bhive task watch <task-id>
+bhive task list
+bhive workers list
+bhive workers status <worker-id>
+bhive queen status
 ```
 
 **Status:** Compiles, but most commands not yet implemented
 
-#### ⏳ ant-army-queen (Stub)
+#### ⏳ bhive-queen (Stub)
 **Purpose:** Queen agent for task decomposition
 
 **Status:** Empty stub, TODO in Phase 1
 
-#### ⏳ ant-army-worker (Stub)
-**Purpose:** Worker ant for subtask execution
+#### ⏳ bhive-worker (Stub)
+**Purpose:** Worker bee for subtask execution
 
 **Status:** Empty stub, TODO in Phase 1
 
@@ -106,9 +106,9 @@ ant-army queen status
 
 ### You Can:
 1. ✅ Build the project: `cargo build --workspace`
-2. ✅ Run the API server: `cargo run --bin ant-army-api`
+2. ✅ Run the API server: `cargo run --bin bhive-api`
 3. ✅ Check health: `curl http://localhost:3030/health`
-4. ✅ Create a task via CLI: `cargo run --bin ant-army -- task create "Test"`
+4. ✅ Create a task via CLI: `cargo run --bin bhive -- task create "Test"`
 5. ✅ See the task ID returned
 
 ### What Doesn't Work Yet:
@@ -125,7 +125,7 @@ ant-army queen status
 **Goal:** Make LLM calls via rust-genai
 
 - [ ] Add `genai` dependency with proper features
-- [ ] Implement `Provider` trait in `ant-army-core/src/provider.rs`
+- [ ] Implement `Provider` trait in `bhive-core/src/provider.rs`
 - [ ] Create provider factory for OpenAI and Anthropic
 - [ ] Add environment variable configuration
 - [ ] Test simple generation and review calls
@@ -149,7 +149,7 @@ ant-army queen status
 ### 3. Queen Agent Implementation (3-4 days)
 **Goal:** Task decomposition and worker spawning
 
-- [ ] Integrate Rig framework in `ant-army-queen`
+- [ ] Integrate Rig framework in `bhive-queen`
 - [ ] Implement basic task decomposition
   - Parse task description
   - Identify subtasks
@@ -163,7 +163,7 @@ ant-army queen status
 ### 4. Worker Implementation (3-4 days)
 **Goal:** Execute subtasks with LLMs
 
-- [ ] Integrate Rig + genai in `ant-army-worker`
+- [ ] Integrate Rig + genai in `bhive-worker`
 - [ ] Implement worker execution loop
   - Generate code with primary provider (OpenAI)
   - Review with secondary provider (Anthropic)
@@ -217,13 +217,13 @@ ant-army queen status
 
 Phase 1 is complete when:
 
-1. ✅ Can run: `ant-army task create "Implement auth" --files src/auth/*.rs`
+1. ✅ Can run: `bhive task create "Implement auth" --files src/auth/*.rs`
 2. ✅ Queen decomposes task into 10 subtasks
 3. ✅ 10 workers spawn and execute in parallel
 4. ✅ Workers call OpenAI for generation, Anthropic for review
 5. ✅ Results saved to workspace directories
-6. ✅ Can run: `ant-army task watch <id>` and see live progress
-7. ✅ Can run: `ant-army workers list` and see active workers
+6. ✅ Can run: `bhive task watch <id>` and see live progress
+7. ✅ Can run: `bhive workers list` and see active workers
 8. ✅ All workers complete successfully
 
 ## Architecture Decisions Made

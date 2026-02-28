@@ -7,7 +7,7 @@
 
 ## Executive Summary
 
-**Key Insight:** LEGOMem, Routine, and RAGCache are not separate techniques - they are complementary facets of a **learned capability system** where Ant Army builds its own tools over time.
+**Key Insight:** LEGOMem, Routine, and RAGCache are not separate techniques - they are complementary facets of a **learned capability system** where B'hive builds its own tools over time.
 
 **What This Means:**
 
@@ -562,7 +562,7 @@ But: "Build self-extending capability system"
 
 ---
 
-## Integration with Ant Army
+## Integration with B'hive
 
 ### **How It Fits:**
 
@@ -584,7 +584,7 @@ Success? → Update Pattern Library
 
 ### **What Gets Built:**
 
-Over time, Ant Army develops:
+Over time, B'hive develops:
 
 ```
 Capability Library:
@@ -624,7 +624,7 @@ Capability Library:
 
 **Category:** Learning & Capability Building (New Section in PRD)
 
-**Priority:** Foundational - enables the vision of Ant Army
+**Priority:** Foundational - enables the vision of B'hive
 
 **Combines:**
 
@@ -634,7 +634,7 @@ Capability Library:
 
 **Value Proposition:**
 
-> "Ant Army doesn't just execute tasks - it learns from every success, building a library of proven capabilities that eliminates context pollution and enables meta-learning. After implementing JWT auth once, it becomes a tool the system knows how to use forever."
+> "B'hive doesn't just execute tasks - it learns from every success, building a library of proven capabilities that eliminates context pollution and enables meta-learning. After implementing JWT auth once, it becomes a tool the system knows how to use forever."
 
 ---
 

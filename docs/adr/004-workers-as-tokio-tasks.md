@@ -2,7 +2,7 @@
 
 ## What
 
-Worker ants are spawned as Tokio tasks within the API server process, not as separate OS processes.
+Worker operators are spawned as Tokio tasks within the API server process, not as separate OS processes.
 
 ## Why
 

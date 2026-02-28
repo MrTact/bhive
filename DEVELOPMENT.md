@@ -2,34 +2,34 @@
 
 ## Project Overview
 
-Ant Army is organized as a Cargo workspace with 5 crates:
+B'hive is organized as a Cargo workspace with 5 crates:
 
 ### Crates
 
-1. **ant-army-core** - Core types and logic
+1. **bhive-core** - Core types and logic
    - Task and worker types
    - Provider abstraction
    - Error handling
    - Shared utilities
 
-2. **ant-army-api** - REST/WebSocket API server
+2. **bhive-api** - REST/WebSocket API server
    - Axum web framework
    - API endpoints for tasks, workers, queen
    - SSE streaming for real-time updates
-   - Binary: `ant-army-api`
+   - Binary: `bhive-api`
 
-3. **ant-army-cli** - Command-line client
+3. **bhive-cli** - Command-line client
    - Clap-based CLI
    - HTTP client for API calls
    - Commands: task, workers, queen
-   - Binary: `ant-army`
+   - Binary: `bhive`
 
-4. **ant-army-queen** - Queen agent (stub)
+4. **bhive-queen** - Queen agent (stub)
    - Task decomposition logic
    - Worker spawning
    - Rig integration
 
-5. **ant-army-worker** - Worker ant (stub)
+5. **bhive-worker** - Worker bee (stub)
    - Subtask execution
    - Rig + genai integration
    - VCS operations
@@ -55,7 +55,7 @@ cargo build --workspace
 export OPENAI_API_KEY="your-key"
 export ANTHROPIC_API_KEY="your-key"
 
-cargo run --bin ant-army-api
+cargo run --bin bhive-api
 # Server starts on http://localhost:3030
 ```
 
@@ -63,20 +63,20 @@ cargo run --bin ant-army-api
 
 ```bash
 # Create a task
-cargo run --bin ant-army -- task create "Implement user authentication" \
+cargo run --bin bhive -- task create "Implement user authentication" \
   --files "src/auth/*.rs" \
   --max-workers 10 \
   --generate "openai/gpt-4o" \
   --review "anthropic/claude-3-5-sonnet"
 
 # Watch task progress
-cargo run --bin ant-army -- task watch <task-id>
+cargo run --bin bhive -- task watch <task-id>
 
 # List workers
-cargo run --bin ant-army -- workers list
+cargo run --bin bhive -- workers list
 
 # Queen status
-cargo run --bin ant-army -- queen status
+cargo run --bin bhive -- queen status
 ```
 
 ### Run Tests
@@ -88,7 +88,7 @@ cargo test --workspace
 ### Run with Logging
 
 ```bash
-RUST_LOG=debug cargo run --bin ant-army-api
+RUST_LOG=debug cargo run --bin bhive-api
 ```
 
 ## Development Workflow
@@ -96,9 +96,9 @@ RUST_LOG=debug cargo run --bin ant-army-api
 ### Adding a New Feature
 
 1. **Design** - Update docs if needed
-2. **Core Types** - Add types to `ant-army-core` if needed
-3. **API** - Add endpoints to `ant-army-api`
-4. **CLI** - Add commands to `ant-army-cli`
+2. **Core Types** - Add types to `bhive-core` if needed
+3. **API** - Add endpoints to `bhive-api`
+4. **CLI** - Add commands to `bhive-cli`
 5. **Test** - Add tests
 6. **Document** - Update README/docs
 
@@ -106,7 +106,7 @@ RUST_LOG=debug cargo run --bin ant-army-api
 
 ```
 crates/
-├── ant-army-core/          # Pure Rust, no I/O
+├── bhive-core/          # Pure Rust, no I/O
 │   ├── src/
 │   │   ├── lib.rs          # Public API
 │   │   ├── types.rs        # Core types
@@ -116,14 +116,14 @@ crates/
 │   │   └── error.rs        # Error types
 │   └── Cargo.toml
 │
-├── ant-army-api/           # API server (async I/O)
+├── bhive-api/           # API server (async I/O)
 │   ├── src/
 │   │   ├── main.rs         # Server entrypoint
 │   │   ├── handlers.rs     # API endpoints
 │   │   └── state.rs        # Shared state
 │   └── Cargo.toml
 │
-└── ant-army-cli/           # CLI client
+└── bhive-cli/           # CLI client
     ├── src/
     │   ├── main.rs         # CLI entrypoint
     │   ├── client.rs       # HTTP client
@@ -134,7 +134,7 @@ crates/
 ## Next Steps (Phase 1)
 
 ### 1. Provider Integration
-- [ ] Integrate `rust-genai` in `ant-army-core`
+- [ ] Integrate `rust-genai` in `bhive-core`
 - [ ] Implement `Provider` trait
 - [ ] Add provider factory
 - [ ] Test with OpenAI and Anthropic
@@ -172,7 +172,7 @@ crates/
 ## Testing Strategy
 
 ### Unit Tests
-- Core types and logic in `ant-army-core`
+- Core types and logic in `bhive-core`
 - Pure functions without I/O
 
 ### Integration Tests

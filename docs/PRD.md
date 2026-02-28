@@ -1,4 +1,4 @@
-# Ant Army - Product Requirements Document
+# B'hive - Product Requirements Document
 
 **Project Status:** Research & Design Phase
 **Last Updated:** January 23, 2026
@@ -8,7 +8,7 @@
 
 ## Executive Summary
 
-**Ant Army** is a "black box" agentic assistant designed to automatically incorporate cutting-edge techniques in LLM-based agentic interaction to dramatically improve the software development experience. The system will intelligently orchestrate multiple agents, optimize for cost and speed, and continuously learn from successful patterns to deliver a superior developer experience.
+**B'hive** is a "black box" agentic assistant designed to automatically incorporate cutting-edge techniques in LLM-based agentic interaction to dramatically improve the software development experience. The system will intelligently orchestrate multiple agents, optimize for cost and speed, and continuously learn from successful patterns to deliver a superior developer experience.
 
 ### Core Value Proposition
 
@@ -28,7 +28,7 @@ Current LLM-based coding assistants:
 - Consume excessive context and tokens
 - Don't leverage proven patterns and workflows
 
-### The Solution: Ant Army
+### The Solution: B'hive
 
 A black box system that:
 
@@ -75,7 +75,7 @@ Improve output quality through:
 
 ### Selected for Implementation
 
-The following techniques have been evaluated and identified as high-value for Ant Army:
+The following techniques have been evaluated and identified as high-value for B'hive:
 
 #### **1. Recursive Language Models (RLM)**
 
@@ -166,8 +166,8 @@ The following techniques have been evaluated and identified as high-value for An
   - **TUI over Web UI:** Terminal interface (like htop, k9s) - no web server needed
   - **Minimal event data:** Just actions, commit IDs, metrics - Jujutsu stores actual changes
 - **Key Requirements:**
-  - **Real-time visualization:** See all active ants and task progress in terminal
-  - **Pause & inspect:** Stop execution at any point, examine individual ant state and commits
+  - **Real-time visualization:** See all active operators and task progress in terminal
+  - **Pause & inspect:** Stop execution at any point, examine individual operator state and commits
   - **Historical record:** Browse complete execution history with search/filter
   - **Time-travel & branching:** Checkpoint execution state, fork from checkpoint with different parameters (advanced)
 - **Architecture Components:**
@@ -187,7 +187,7 @@ The following techniques have been evaluated and identified as high-value for An
     - Fork execution with different strategies
     - A/B test orchestration approaches
 - **Value-Add:**
-  - **Debug complex orchestration:** Inspect what hundreds of ants are doing
+  - **Debug complex orchestration:** Inspect what hundreds of operators are doing
   - **Root cause analysis:** Browse events + `jj show <commit-id>` for actual changes
   - **Strategy optimization:** Compare different orchestration approaches
   - **Learning:** Identify patterns that work/fail
@@ -264,7 +264,7 @@ A unifying theme across RLM, Ralph, and LEGOMem: **all techniques optimize atten
 
 ### **Core Insight: Self-Extending Tools Through Pattern Learning**
 
-LEGOMem, Routine, and RAGCache are not separate techniques—they are **complementary facets of a unified learned capability system**. Together, they enable Ant Army to build its own tools over time.
+LEGOMem, Routine, and RAGCache are not separate techniques—they are **complementary facets of a unified learned capability system**. Together, they enable B'hive to build its own tools over time.
 
 **Details:** See [`notes/learned-capabilities-system.md`](notes/learned-capabilities-system.md)
 
@@ -541,13 +541,13 @@ See [COORDINATION_LAYER_RUST.md](COORDINATION_LAYER_RUST.md) for complete implem
 - Extractive filtering
 - Summarization option
 - 70-80% token reduction
-- Applied before passing context to ants
+- Applied before passing context to operators
 
 ### Integration Architecture: Headless Service
 
 ```
 ┌──────────────────────────────────────────────────────────┐
-│              Ant Army Service (Rust)                     │
+│              B'hive Service (Rust)                       │
 │                                                          │
 │  ┌────────────────────────────────────────────────────┐ │
 │  │     Queen Agent (Coordinator)                      │ │
@@ -566,10 +566,10 @@ See [COORDINATION_LAYER_RUST.md](COORDINATION_LAYER_RUST.md) for complete implem
 │ Workspace: 1   Workspace: 2   Workspace: N              │
 │                                                          │
 │  Crates:                                                 │
-│  ├─ ant-army-core/    (agents, coordination, vcs)       │
-│  ├─ ant-army-api/     (Axum REST/WebSocket)             │
-│  ├─ ant-army-cli/     (CLI client)                      │
-│  └─ ant-army-llm/     (Rig + rust-genai)                │
+│  ├─ bhive-core/       (agents, coordination, vcs)       │
+│  ├─ bhive-api/        (Axum REST/WebSocket)             │
+│  ├─ bhive-cli/        (CLI client)                      │
+│  └─ bhive-llm/        (Rig + rust-genai)                │
 └──────────────────────────────────────────────────────────┘
                │
                │ REST/WebSocket API
@@ -665,11 +665,11 @@ Developer: [Works for 2-3 days]
 Result: Delivered after days
 ```
 
-**With Ant Army:**
+**With B'hive:**
 
 ```
 User: "Add JWT authentication system"
-Ant Army: [Spawns 200 ants, works for 30 minutes]
+B'hive: [Spawns 200 operators, works for 30 minutes]
 Result: Delivered in under an hour
 ```
 
@@ -685,7 +685,7 @@ Result: Delivered in under an hour
 
 #### **1. Speed: Trade Cost for Time**
 
-> "Complete in minutes what takes days. Ant Army decomposes your task into thousands of tiny pieces and swarms them with parallel agents."
+> "Complete in minutes what takes days. B'hive decomposes your task into thousands of tiny pieces and swarms them with parallel agents."
 
 - 10× speedup (Phase 1): $2-5 per task
 - 50× speedup (Phase 2): $5-15 per task
@@ -699,7 +699,7 @@ Result: Delivered in under an hour
 
 #### **2. Intelligence: Learns From Success**
 
-> "After successfully implementing JWT auth once, Ant Army never needs to relearn it. Patterns become tools in a growing capability library."
+> "After successfully implementing JWT auth once, B'hive never needs to relearn it. Patterns become tools in a growing capability library."
 
 - Week 1: Novel task (full decomposition)
 - Week 2+: Recognized pattern (instant template)
@@ -1092,7 +1092,7 @@ See **[IMPLEMENTATION_PHASE_1.md](IMPLEMENTATION_PHASE_1.md)** for complete brea
 
 ### January 23, 2026 - Session 3 (OpenCode Discovery - MAJOR PIVOT)
 
-16. ✅ **CRITICAL DISCOVERY:** Ant Army is building atop OpenCode, not from scratch
+16. ✅ **CRITICAL DISCOVERY:** B'hive is building atop OpenCode, not from scratch
     - User clarification: We're extending OpenCode (existing TUI agentic assistant)
     - OpenCode already provides: TUI framework, session management, agent system, tool system, event bus, logging, git worktrees, configuration, MCP support
 17. ✅ Explored OpenCode repository at /Users/tkeating/git-repos/opencode
@@ -1104,8 +1104,8 @@ See **[IMPLEMENTATION_PHASE_1.md](IMPLEMENTATION_PHASE_1.md)** for complete brea
 18. ✅ Created notes/opencode-integration-analysis.md
     - Comprehensive analysis of what OpenCode provides
     - What we can leverage as-is vs what we need to extend/build
-    - Integration architecture: Ant Army as meta-orchestrator above OpenCode
-    - Each ant = one OpenCode session
+    - Integration architecture: B'hive as meta-orchestrator above OpenCode
+    - Each operator = one OpenCode session
     - Revised component mapping
 19. ✅ Updated PRD Foundation section
     - **MAJOR CHANGE:** Foundation is OpenCode, not hackathon project

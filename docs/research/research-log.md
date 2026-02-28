@@ -1,8 +1,8 @@
 # Research Log
 
-**Project:** ant-army research project
+**Project:** bhive research project
 **Start Date:** 2026-01-23
-**Location:** /Volumes/Git/git-repos/ant-army
+**Location:** /Volumes/Git/git-repos/bhive
 
 ## Project Guidelines
 

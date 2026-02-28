@@ -23,7 +23,7 @@ TODO.md file on disk
 **Why It Fails at Scale:**
 
 ```
-With 100 concurrent ants:
+With 100 concurrent operators:
 ├─ 100 branches editing TODO.md
 ├─ 100 merge conflicts when integrating
 ├─ Race conditions reading task state
@@ -32,11 +32,11 @@ With 100 concurrent ants:
 └─ Complete breakdown of coordination
 ```
 
-### Requirements for Ant Army
+### Requirements for B'hive
 
 **Must Handle:**
 
-- ✅ Hundreds to thousands of concurrent ants
+- ✅ Hundreds to thousands of concurrent operators
 - ✅ Atomic state transitions (claim task, mark complete)
 - ✅ No data corruption or lost updates
 - ✅ No deadlocks
@@ -59,7 +59,7 @@ Task Coordinator (Single Writer)
        ↕
 Work Queue (Bull/BullMQ)
        ↕
-100-1000 Ants (Consumers)
+100-1000 Operators (Consumers)
 ```
 
 **How It Works:**
@@ -69,7 +69,7 @@ Work Queue (Bull/BullMQ)
 interface Task {
   id: string
   status: "pending" | "claimed" | "in_progress" | "completed" | "failed"
-  antId?: string
+  operatorId?: string
   claimedAt?: Date
   completedAt?: Date
   result?: any
@@ -78,16 +78,16 @@ interface Task {
 
 // Coordinator manages state
 class TaskCoordinator {
-  async claimTask(antId: string): Promise<Task | null> {
+  async claimTask(operatorId: string): Promise<Task | null> {
     // Atomic transaction:
     // 1. Find unclaimed task with no pending dependencies
-    // 2. Set status = 'claimed', antId = antId
+    // 2. Set status = 'claimed', operatorId = operatorId
     // 3. Return task
     return db.transaction(async (tx) => {
       const task = await tx.query(
         `
         UPDATE tasks
-        SET status = 'claimed', ant_id = $1, claimed_at = NOW()
+        SET status = 'claimed', operator_id = $1, claimed_at = NOW()
         WHERE id IN (
           SELECT id FROM tasks
           WHERE status = 'pending'
@@ -102,7 +102,7 @@ class TaskCoordinator {
         )
         RETURNING *
       `,
-        [antId],
+        [operatorId],
       )
       return task
     })
@@ -132,7 +132,7 @@ class TaskCoordinator {
 - ✅ Fast (< 10ms for claim operation)
 - ✅ Proven technology (PostgreSQL is rock-solid)
 - ✅ Easy to query/monitor state
-- ✅ Can scale to thousands of ants
+- ✅ Can scale to thousands of operators
 
 **Cons:**
 
@@ -183,7 +183,7 @@ Best for: Speed-critical, simpler queries
 ```
 Event Log (Append-Only)
   ├─ TaskCreated
-  ├─ TaskClaimed (antId: "ant-1")
+  ├─ TaskClaimed (operatorId: "op-1")
   ├─ TaskStarted
   ├─ TaskCompleted
   └─ TaskFailed
@@ -208,7 +208,7 @@ interface TaskEvent {
 }
 
 class EventSourcingCoordinator {
-  async claimTask(antId: string): Promise<Task | null> {
+  async claimTask(operatorId: string): Promise<Task | null> {
     // 1. Find unclaimed task from current state
     const task = await this.findUnclaimedTask()
     if (!task) return null
@@ -219,7 +219,7 @@ class EventSourcingCoordinator {
       taskId: task.id,
       timestamp: new Date(),
       type: "claimed",
-      data: { antId },
+      data: { operatorId },
     }
 
     // 3. Append is atomic (optimistic locking)
@@ -228,8 +228,8 @@ class EventSourcingCoordinator {
     })
 
     if (!success) {
-      // Another ant claimed it, try again
-      return this.claimTask(antId)
+      // Another operator claimed it, try again
+      return this.claimTask(operatorId)
     }
 
     // 4. Update read model
@@ -285,10 +285,10 @@ class EventSourcingCoordinator {
 Task Decomposer
        ↓
 Work Queue (Bull/BullMQ on Redis)
-  ├─ Task 1 → Ant Pool → Ant #1
-  ├─ Task 2 → Ant Pool → Ant #2
-  ├─ Task 3 → Ant Pool → Ant #3
-  └─ Task N → Ant Pool → Ant #N
+  ├─ Task 1 → Operator Pool → Op #1
+  ├─ Task 2 → Operator Pool → Op #2
+  ├─ Task 3 → Operator Pool → Op #3
+  └─ Task N → Operator Pool → Op #N
 
 Results Queue
        ↓
@@ -320,9 +320,9 @@ class TaskDecomposer {
   }
 }
 
-// Ants consume tasks
-class DeveloperAnt {
-  constructor(antId: string) {
+// Operators consume tasks
+class DeveloperOperator {
+  constructor(operatorId: string) {
     this.processor = taskQueue.process(async (job) => {
       const task = job.data
       const result = await this.execute(task)
@@ -330,7 +330,7 @@ class DeveloperAnt {
       // Report result
       await resultQueue.add({
         taskId: task.id,
-        antId: this.antId,
+        operatorId: this.operatorId,
         result,
       })
 
@@ -351,10 +351,10 @@ taskQueue.on("failed", (job, err) => {
 
 **Pros:**
 
-- ✅ Natural work distribution (ants pull tasks)
+- ✅ Natural work distribution (operators pull tasks)
 - ✅ Built-in retry/failure handling
 - ✅ Priority queues (critical tasks first)
-- ✅ Rate limiting per ant
+- ✅ Rate limiting per operator
 - ✅ Excellent monitoring (Bull Board UI)
 - ✅ No coordination logic needed
 - ✅ Scales horizontally (add more workers)
@@ -414,14 +414,14 @@ class WaveCoordinator {
                   ↓
 ┌─────────────────────────────────────────────────┐
 │         Bull Queue (Work Distribution)          │
-│  - Ants pull work from queue                    │
+│  - Operators pull work from queue               │
 │  - Built-in retry, monitoring                   │
 └─────────────────┬───────────────────────────────┘
                   ↓
          ┌────────┴────────┐
          ↓                 ↓
     ┌─────────┐      ┌─────────┐
-    │ Ant #1  │      │ Ant #N  │
+    │ Op #1   │      │ Op #N   │
     │(Jujutsu │ ...  │(Jujutsu │
     │workspace)      │workspace)│
     └────┬────┘      └────┬────┘
@@ -445,7 +445,7 @@ CREATE TABLE tasks (
   description TEXT NOT NULL,
   context JSONB,
   status TEXT NOT NULL CHECK (status IN ('pending', 'queued', 'claimed', 'in_progress', 'completed', 'failed')),
-  ant_id TEXT,
+  operator_id TEXT,
   workspace_path TEXT,
   claimed_at TIMESTAMPTZ,
   started_at TIMESTAMPTZ,
@@ -463,7 +463,7 @@ CREATE TABLE task_dependencies (
 );
 
 CREATE INDEX idx_tasks_status ON tasks(status);
-CREATE INDEX idx_tasks_ant_id ON tasks(ant_id);
+CREATE INDEX idx_tasks_operator_id ON tasks(operator_id);
 CREATE INDEX idx_task_deps ON task_dependencies(task_id);
 
 // Work Distribution via Bull
@@ -534,18 +534,18 @@ class HybridCoordinator {
     }
   }
 
-  // Ant claims and executes
+  // Operator claims and executes
   async executeTask(job: Bull.Job): Promise<any> {
     const { taskId } = job.data
-    const antId = this.getAntId()
+    const operatorId = this.getOperatorId()
 
     // 1. Claim task atomically
     const claimed = await this.db.query(`
       UPDATE tasks
-      SET status = 'claimed', ant_id = $1, claimed_at = NOW()
+      SET status = 'claimed', operator_id = $1, claimed_at = NOW()
       WHERE id = $2 AND status = 'queued'
       RETURNING *
-    `, [antId, taskId])
+    `, [operatorId, taskId])
 
     if (!claimed.rows[0]) {
       throw new Error('Task already claimed')
@@ -558,8 +558,8 @@ class HybridCoordinator {
     `, [taskId])
 
     // 3. Execute in isolated workspace
-    const workspace = await this.createWorkspace(antId, taskId)
-    const result = await this.ant.execute(claimed.rows[0], workspace)
+    const workspace = await this.createWorkspace(operatorId, taskId)
+    const result = await this.operator.execute(claimed.rows[0], workspace)
 
     // 4. Mark completed
     await this.db.query(`
@@ -585,14 +585,14 @@ class HybridCoordinator {
    - Easy to query for monitoring
 
 2. **Queue (Bull/Redis):**
-   - Distributes work to ants
+   - Distributes work to operators
    - Built-in retry and failure handling
-   - Natural backpressure (ants pull when ready)
+   - Natural backpressure (operators pull when ready)
    - Excellent monitoring
 
 3. **File System (Jujutsu Workspaces):**
-   - Ants work in isolated workspaces
-   - No file conflicts (each ant has own branch)
+   - Operators work in isolated workspaces
+   - No file conflicts (each operator has own branch)
    - Only integration coordinator merges
    - File-based results are fine (one writer per workspace)
 
@@ -600,7 +600,7 @@ class HybridCoordinator {
 
 ```
 Coordination:     PostgreSQL (task state, dependencies)
-Work Distribution: Bull Queue (get work to ants)
+Work Distribution: Bull Queue (get work to operators)
 Code Changes:     Jujutsu Workspaces (isolated, no conflicts)
 Results:          Database + Files (hybrid)
 ```
@@ -611,7 +611,7 @@ Results:          Database + Files (hybrid)
 - ✅ Database handles complex coordination
 - ✅ Queue handles work distribution
 - ✅ No file merge conflicts
-- ✅ Scales to thousands of ants
+- ✅ Scales to thousands of operators
 - ✅ Proven technologies
 - ✅ Clear separation of concerns
 
@@ -645,10 +645,10 @@ Implementation:
   - Integration between coordinator and queue
 
 Testing:
-  - 10 concurrent ants claiming tasks
+  - 10 concurrent operators claiming tasks
   - Dependency ordering works correctly
   - No race conditions or deadlocks
-  - Failure recovery (ant crashes, task retries)
+  - Failure recovery (operator crashes, task retries)
 ```
 
 **Database Schema:**
@@ -662,8 +662,8 @@ CREATE TABLE tasks (
   context JSONB NOT NULL,
   compressed_context JSONB,  -- For prompt compression later
   status TEXT NOT NULL CHECK (status IN ('pending', 'queued', 'claimed', 'in_progress', 'completed', 'failed', 'cancelled')),
-  ant_id TEXT,
-  ant_type TEXT CHECK (ant_type IN ('developer', 'review', 'integration')),
+  operator_id TEXT,
+  operator_type TEXT CHECK (operator_type IN ('developer', 'review', 'integration')),
   workspace_path TEXT,
   estimated_complexity TEXT CHECK (estimated_complexity IN ('low', 'medium', 'high')),
   suggested_model TEXT,
@@ -688,7 +688,7 @@ CREATE TABLE task_dependencies (
 
 -- Indexes for performance
 CREATE INDEX idx_tasks_status ON tasks(status) WHERE status IN ('pending', 'queued', 'claimed');
-CREATE INDEX idx_tasks_ant_id ON tasks(ant_id) WHERE ant_id IS NOT NULL;
+CREATE INDEX idx_tasks_operator_id ON tasks(operator_id) WHERE operator_id IS NOT NULL;
 CREATE INDEX idx_tasks_parent ON tasks(parent_task_id) WHERE parent_task_id IS NOT NULL;
 CREATE INDEX idx_tasks_wave ON tasks(wave_number) WHERE wave_number IS NOT NULL;
 CREATE INDEX idx_task_deps_task ON task_dependencies(task_id);
@@ -723,8 +723,8 @@ services:
   postgres:
     image: postgres:16
     environment:
-      POSTGRES_DB: ant_army
-      POSTGRES_USER: ant_army
+      POSTGRES_DB: bhive
+      POSTGRES_USER: bhive
       POSTGRES_PASSWORD: dev_password
     ports:
       - "5432:5432"
@@ -732,7 +732,7 @@ services:
       - postgres_data:/var/lib/postgresql/data
       - ./schema.sql:/docker-entrypoint-initdb.d/schema.sql
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ant_army"]
+      test: ["CMD-SHELL", "pg_isready -U bhive"]
       interval: 5s
       timeout: 5s
       retries: 5
@@ -795,7 +795,7 @@ curl http://localhost:3001  # Bull Board UI
 
 ```sql
 -- Same tasks in database
-INSERT INTO tasks (description, status, ant_id) VALUES
+INSERT INTO tasks (description, status, operator_id) VALUES
   ('Task 1 description', 'pending', NULL),
   ('Task 2 description', 'claimed', 'larry'),
   ('Task 3 description', 'in_progress', 'curly'),
@@ -815,10 +815,10 @@ class TodoMigration {
       for (const task of tasks) {
         await tx.query(
           `
-          INSERT INTO tasks (description, status, ant_id)
-          VALUES ($1, $2, $3)
-        `,
-          [task.description, this.mapStatus(task.marker), task.antId],
+          INSERT INTO tasks (description, status, operator_id)
+                  VALUES ($1, $2, $3)
+                `,
+                  [task.description, this.mapStatus(task.marker), task.operatorId],
         )
       }
     })
@@ -860,7 +860,7 @@ Query dependencies: 5-10ms (indexed JOIN)
 Expected throughput:
   - 100-200 operations/second (single connection)
   - 1000+ operations/second (connection pool)
-  - Sufficient for 1000 concurrent ants
+  - Sufficient for 1000 concurrent operators
 ```
 
 **Bull Queue:**
@@ -883,7 +883,7 @@ Solution 1: Aggressive indexing (done)
 Solution 2: Cache ready tasks in Redis (Phase 2)
 Solution 3: Denormalize wave structure (Phase 3)
 
-Result: Can easily handle 1000 concurrent ants
+Result: Can easily handle 1000 concurrent operators
 ```
 
 ---
@@ -892,7 +892,7 @@ Result: Can easily handle 1000 concurrent ants
 
 **Like Google Docs collaborative editing:**
 
-- Each ant makes changes
+- Each operator makes changes
 - Transform conflicts algorithmically
 - Merge automatically
 
@@ -917,7 +917,7 @@ Result: Can easily handle 1000 concurrent ants
 
 **Benefits:**
 
-- Handles 1000+ concurrent ants
+- Handles 1000+ concurrent operators
 - No merge conflicts (workspaces isolated)
 - Atomic operations (database guarantees)
 - Built-in retry/failure handling (Bull)
@@ -928,8 +928,8 @@ Result: Can easily handle 1000 concurrent ants
 
 - Week 1: Set up infrastructure (Docker Compose)
 - Week 1-2: Implement TaskCoordinator + QueueManager
-- Week 2-3: Integrate with decomposer and ants
-- Week 4: Load testing (100 concurrent ants)
+- Week 2-3: Integrate with decomposer and operators
+- Week 4: Load testing (100 concurrent operators)
 
 **Cost:**
 
@@ -948,24 +948,24 @@ Result: Can easily handle 1000 concurrent ants
 - [ ] Implement TaskCoordinator class
 - [ ] Implement QueueManager class
 - [ ] Integrate decomposer → database → queue
-- [ ] Integrate ants → queue → execution
-- [ ] Test: 10 concurrent ants, no conflicts
-- [ ] Test: 50 concurrent ants, correct ordering
-- [ ] Test: Ant failure, task retry works
+- [ ] Integrate operators → queue → execution
+- [ ] Test: 10 concurrent operators, no conflicts
+- [ ] Test: 50 concurrent operators, correct ordering
+- [ ] Test: Operator failure, task retry works
 
 ### Phase 2 (Weeks 5-8)
 
 - [ ] Add task state caching in Redis
 - [ ] Optimize dependency queries
 - [ ] Implement wave-based batching
-- [ ] Test: 100 concurrent ants
+- [ ] Test: 100 concurrent operators
 
 ### Phase 3 (Weeks 9-12)
 
 - [ ] Advanced monitoring dashboard
 - [ ] Task analytics (time per task type)
 - [ ] Predictive queuing (ML-based prioritization)
-- [ ] Test: 500+ concurrent ants
+- [ ] Test: 500+ concurrent operators
 
 ---
 

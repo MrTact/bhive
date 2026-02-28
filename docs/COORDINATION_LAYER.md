@@ -1,14 +1,14 @@
-# Ant Army - Coordination Layer Implementation
+# B'hive - Coordination Layer Implementation
 
 **Status:** Priority Implementation
 **Dependencies:** None (foundational infrastructure)
-**Goal:** Provide atomic task coordination and observability for parallel ant execution
+**Goal:** Provide atomic task coordination and observability for parallel operator execution
 
 ---
 
 ## Overview
 
-The coordination layer is the shared "scratchpad" that enables ants to work in parallel without conflicts. It replaces in-memory/file-based coordination with a PostgreSQL database that provides:
+The coordination layer is the shared "scratchpad" that enables operators to work in parallel without conflicts. It replaces in-memory/file-based coordination with a PostgreSQL database that provides:
 
 1. **Task Management** - Atomic claim/complete operations
 2. **Dependency Tracking** - DAG-based execution ordering
@@ -30,7 +30,7 @@ The coordination layer is the shared "scratchpad" that enables ants to work in p
 │                         Queen Agent                         │
 │  - Decomposes tasks                                         │
 │  - Monitors progress                                        │
-│  - Spawns ants for ready tasks                              │
+│  - Spawns operators for ready tasks                         │
 └─────────────────────────────────────────────────────────────┘
                               │
                               ▼
@@ -45,7 +45,7 @@ The coordination layer is the shared "scratchpad" that enables ants to work in p
         ┌─────────────────────┼─────────────────────┐
         ▼                     ▼                     ▼
 ┌───────────────┐    ┌───────────────┐    ┌───────────────┐
-│  ant-7f2b     │    │  ant-3a1c     │    │  ant-9d4e     │
+│  op-7f2b      │    │  op-3a1c      │    │  op-9d4e      │
 │  workspace    │    │  workspace    │    │  workspace    │
 │  (jj edit)    │    │  (jj edit)    │    │  (jj edit)    │
 └───────────────┘    └───────────────┘    └───────────────┘
@@ -57,7 +57,7 @@ The coordination layer is the shared "scratchpad" that enables ants to work in p
 
 ### Core Principle: Minimal Communication Protocol
 
-Ants don't converse - they report. Communication is:
+Operators don't converse - they report. Communication is:
 
 1. **Status transitions** (pending → claimed → completed)
 2. **Result blob** (structured completion data)
@@ -68,11 +68,11 @@ Ants don't converse - they report. Communication is:
 ```sql
 -- schema.sql
 
--- Ant lifecycle tracking
-CREATE TABLE ants (
-  id TEXT PRIMARY KEY,              -- e.g., 'ant-7f2b'
-  ant_type TEXT NOT NULL
-    CHECK (ant_type IN ('ant-operator', 'ant-review', 'ant-merge')),
+-- Operator lifecycle tracking
+CREATE TABLE operators (
+id TEXT PRIMARY KEY,              -- e.g., 'op-7f2b'
+operator_type TEXT NOT NULL
+CHECK (operator_type IN ('operator', 'review', 'merge')),
   status TEXT NOT NULL DEFAULT 'idle'
     CHECK (status IN ('idle', 'active', 'failed')),
 
@@ -89,7 +89,7 @@ CREATE TABLE ants (
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
-CREATE INDEX idx_ants_status_type ON ants(status, ant_type);
+CREATE INDEX idx_operators_status_type ON operators(status, operator_type);
 
 -- Task coordination
 CREATE TABLE tasks (
@@ -99,20 +99,20 @@ CREATE TABLE tasks (
   -- Task definition
   status TEXT NOT NULL DEFAULT 'pending'
     CHECK (status IN ('pending', 'claimed', 'completed', 'failed', 'cancelled')),
-  ant_type TEXT NOT NULL
-    CHECK (ant_type IN ('ant-operator', 'ant-review', 'ant-merge')),
-  context TEXT NOT NULL,  -- Compressed prompt for the ant (300-500 tokens)
+  operator_type TEXT NOT NULL
+  CHECK (operator_type IN ('operator', 'review', 'merge')),
+  context TEXT NOT NULL,  -- Compressed prompt for the operator (300-500 tokens)
 
   -- Model routing (queen assigns at task creation)
   model TEXT NOT NULL,              -- e.g., 'gpt-4o-mini', 'claude-sonnet-4'
   model_provider TEXT NOT NULL,     -- e.g., 'openai', 'anthropic' (denormalized for cross-provider queries)
 
   -- Assignment
-  assigned_ant TEXT,      -- Ant ID (e.g., 'ant-7f2b')
+  assigned_operator TEXT,      -- Operator ID (e.g., 'op-7f2b')
   claimed_at TIMESTAMPTZ,
 
   -- Jujutsu state
-  base_commit TEXT,       -- Commit ant started from
+  base_commit TEXT,       -- Commit operator started from
   result_commit TEXT,     -- Commit containing completed work
   bookmark TEXT,          -- Bookmark protecting result_commit from GC
 
@@ -137,7 +137,7 @@ CREATE TABLE logs (
   id BIGSERIAL PRIMARY KEY,
   ts TIMESTAMPTZ DEFAULT NOW(),
   level TEXT NOT NULL CHECK (level IN ('debug', 'info', 'warn', 'error')),
-  source TEXT NOT NULL,   -- 'queen', 'ant-7f2b', 'coordinator', etc.
+  source TEXT NOT NULL,   -- 'queen', 'op-7f2b', 'coordinator', etc.
   task_id TEXT,           -- Optional correlation
   event TEXT NOT NULL,    -- 'task_claimed', 'commit_created', 'merge_failed', etc.
   data JSONB              -- Structured payload
@@ -145,7 +145,7 @@ CREATE TABLE logs (
 
 -- Indexes for common operations
 CREATE INDEX idx_tasks_status ON tasks(status) WHERE status IN ('pending', 'claimed');
-CREATE INDEX idx_tasks_assigned ON tasks(assigned_ant) WHERE assigned_ant IS NOT NULL;
+CREATE INDEX idx_tasks_assigned ON tasks(assigned_operator) WHERE assigned_operator IS NOT NULL;
 CREATE INDEX idx_logs_ts ON logs(ts DESC);
 CREATE INDEX idx_logs_task ON logs(task_id) WHERE task_id IS NOT NULL;
 CREATE INDEX idx_logs_source ON logs(source);
@@ -170,14 +170,14 @@ END;
 $$ LANGUAGE plpgsql;
 
 -- Atomic claim operation (prevents double-claiming)
-CREATE OR REPLACE FUNCTION claim_task(p_task_id TEXT, p_ant_id TEXT)
+CREATE OR REPLACE FUNCTION claim_task(p_task_id TEXT, p_operator_id TEXT)
 RETURNS BOOLEAN AS $$
 DECLARE
   v_claimed BOOLEAN;
 BEGIN
   UPDATE tasks
   SET status = 'claimed',
-      assigned_ant = p_ant_id,
+      assigned_operator = p_operator_id,
       claimed_at = NOW(),
       updated_at = NOW()
   WHERE id = p_task_id
@@ -188,48 +188,48 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- Get or create an idle ant of the specified type
--- Returns ant ID (existing idle ant or newly created)
-CREATE OR REPLACE FUNCTION acquire_ant(p_ant_type TEXT)
+-- Get or create an idle operator of the specified type
+-- Returns operator ID (existing idle operator or newly created)
+CREATE OR REPLACE FUNCTION acquire_operator(p_operator_type TEXT)
 RETURNS TEXT AS $$
 DECLARE
-  v_ant_id TEXT;
+  v_operator_id TEXT;
 BEGIN
-  -- Try to claim an existing idle ant
-  UPDATE ants
+  -- Try to claim an existing idle operator
+  UPDATE operators
   SET status = 'active',
       last_active_at = NOW()
   WHERE id = (
-    SELECT id FROM ants
+    SELECT id FROM operators
     WHERE status = 'idle'
-    AND ant_type = p_ant_type
+    AND operator_type = p_operator_type
     LIMIT 1
     FOR UPDATE SKIP LOCKED
   )
-  RETURNING id INTO v_ant_id;
+  RETURNING id INTO v_operator_id;
 
-  -- If no idle ant, create a new one
-  IF v_ant_id IS NULL THEN
-    v_ant_id := p_ant_type || '-' || substr(md5(random()::text), 1, 4);
-    INSERT INTO ants (id, ant_type, status, last_active_at)
-    VALUES (v_ant_id, p_ant_type, 'active', NOW());
+  -- If no idle operator, create a new one
+  IF v_operator_id IS NULL THEN
+    v_operator_id := 'op-' || substr(md5(random()::text), 1, 4);
+    INSERT INTO operators (id, operator_type, status, last_active_at)
+    VALUES (v_operator_id, p_operator_type, 'active', NOW());
   END IF;
 
-  RETURN v_ant_id;
+  RETURN v_operator_id;
 END;
 $$ LANGUAGE plpgsql;
 
--- Release an ant back to idle state
-CREATE OR REPLACE FUNCTION release_ant(p_ant_id TEXT)
+-- Release an operator back to idle state
+CREATE OR REPLACE FUNCTION release_operator(p_operator_id TEXT)
 RETURNS VOID AS $$
 BEGIN
-  UPDATE ants
+  UPDATE operators
   SET status = 'idle',
       current_task_id = NULL,
       current_session_id = NULL,
       tasks_completed = tasks_completed + 1,
       last_active_at = NOW()
-  WHERE id = p_ant_id;
+  WHERE id = p_operator_id;
 END;
 $$ LANGUAGE plpgsql;
 
@@ -247,7 +247,7 @@ BEGIN
   IF TG_OP = 'INSERT' AND NEW.status = 'pending' THEN
     PERFORM pg_notify('task_ready', json_build_object(
       'task_id', NEW.id,
-      'ant_type', NEW.ant_type
+      'operator_type', NEW.operator_type
     )::text);
   END IF;
 
@@ -255,7 +255,7 @@ BEGIN
   IF TG_OP = 'UPDATE' AND OLD.status != 'completed' AND NEW.status = 'completed' THEN
     PERFORM pg_notify('task_completed', json_build_object(
       'task_id', NEW.id,
-      'ant_type', NEW.ant_type
+      'operator_type', NEW.operator_type
     )::text);
   END IF;
 
@@ -267,23 +267,23 @@ CREATE TRIGGER task_status_notify
 AFTER INSERT OR UPDATE OF status ON tasks
 FOR EACH ROW EXECUTE FUNCTION notify_task_ready();
 
--- Notify when an ant becomes idle (available for reuse)
-CREATE OR REPLACE FUNCTION notify_ant_idle()
+-- Notify when an operator becomes idle (available for reuse)
+CREATE OR REPLACE FUNCTION notify_operator_idle()
 RETURNS TRIGGER AS $$
 BEGIN
   IF OLD.status = 'active' AND NEW.status = 'idle' THEN
-    PERFORM pg_notify('ant_idle', json_build_object(
-      'ant_id', NEW.id,
-      'ant_type', NEW.ant_type
+    PERFORM pg_notify('operator_idle', json_build_object(
+      'operator_id', NEW.id,
+      'operator_type', NEW.operator_type
     )::text);
   END IF;
   RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
 
-CREATE TRIGGER ant_status_notify
-AFTER UPDATE OF status ON ants
-FOR EACH ROW EXECUTE FUNCTION notify_ant_idle();
+CREATE TRIGGER operator_status_notify
+AFTER UPDATE OF status ON operators
+FOR EACH ROW EXECUTE FUNCTION notify_operator_idle();
 ```
 
 ### TypeScript Interfaces
@@ -291,9 +291,9 @@ FOR EACH ROW EXECUTE FUNCTION notify_ant_idle();
 ```typescript
 // packages/opencode/src/coordination/types.ts
 
-export interface Ant {
-  id: string // e.g., 'ant-operator-7f2b'
-  antType: "ant-operator" | "ant-review" | "ant-merge"
+export interface Operator {
+  id: string // e.g., 'op-7f2b'
+  operatorType: "operator" | "review" | "merge"
   status: "idle" | "active" | "failed"
 
   // Workspace (persists across tasks)
@@ -313,7 +313,7 @@ export interface Task {
   id: string
   parentId?: string
   status: "pending" | "claimed" | "completed" | "failed" | "cancelled"
-  antType: "ant-operator" | "ant-review" | "ant-merge"
+  operatorType: "operator" | "review" | "merge"
   context: string // Compressed prompt
 
   // Model routing (queen assigns at creation)
@@ -321,7 +321,7 @@ export interface Task {
   modelProvider: string // e.g., 'openai', 'anthropic'
 
   // Assignment
-  assignedAnt?: string
+  assignedOperator?: string
   claimedAt?: Date
 
   // Jujutsu state
@@ -342,7 +342,7 @@ export interface TaskResult {
   success: boolean
   summary: string // LLM-generated completion summary
   filesChanged?: string[] // List of modified files
-  assumptions?: string[] // Assumptions made (for review ant)
+  assumptions?: string[] // Assumptions made (for review operator)
   blockers?: string[] // If failed, what blocked completion
 }
 
@@ -364,38 +364,38 @@ export interface LogEntry {
 
 ---
 
-## Ant Lifecycle Model
+## Operator Lifecycle Model
 
-Ants are reusable workers managed by the queen. Each ant has:
+Operators are reusable workers managed by the queen. Each operator has:
 
-- A persistent **identity** (e.g., `ant-operator-7f2b`)
-- A persistent **workspace** (Jujutsu, named after the ant)
+- A persistent **identity** (e.g., `op-7f2b`)
+- A persistent **workspace** (Jujutsu, named after the operator)
 - A **status**: `idle` (available), `active` (working), or `failed`
 
 ### Lifecycle Flow
 
 ```
-Queen needs ant-operator for task-abc123:
+Queen needs operator for task-abc123:
 │
-├─ 1. Query: SELECT acquire_ant('ant-operator')
-│      └─ Returns idle ant "ant-operator-3a1c" (reused)
-│      └─ OR creates new ant "ant-operator-7f2b" if none idle
+├─ 1. Query: SELECT acquire_operator('operator')
+│      └─ Returns idle operator "op-3a1c" (reused)
+│      └─ OR creates new operator "op-7f2b" if none idle
 │
-├─ 2. Spawn session for the ant
+├─ 2. Spawn session for the operator
 │      └─ Create new OpenCode child session (clean context)
-│      └─ Session uses ant's existing workspace
+│      └─ Session uses operator's existing workspace
 │
-├─ 3. Ant executes task
+├─ 3. Operator executes task
 │      └─ jj edit {base_commit}
 │      └─ Makes changes
 │      └─ jj commit + jj bookmark set task-abc123
 │
-├─ 4. Ant completes
+├─ 4. Operator completes
 │      └─ Coordinator.completeTask(taskId, commit, result)
-│      └─ Coordinator.releaseAnt(antId)  → status = 'idle'
+│      └─ Coordinator.releaseOperator(operatorId)  → status = 'idle'
 │      └─ Session ends
 │
-└─ 5. Ant is now idle, ready for next task
+└─ 5. Operator is now idle, ready for next task
        └─ Workspace persists (no recreation cost)
        └─ New session = clean LLM context
 ```
@@ -404,8 +404,8 @@ Queen needs ant-operator for task-abc123:
 
 - **Workspace reuse**: No cost to recreate jj workspace each task
 - **Clean context**: New session per task = no LLM history pollution
-- **Emergent scaling**: Pool grows as needed, shrinks naturally (idle ants stick around)
-- **Observable**: Query ant pool status in database
+- **Emergent scaling**: Pool grows as needed, shrinks naturally (idle operators stick around)
+- **Observable**: Query operator pool status in database
 
 ### Bookmark Convention
 
@@ -415,17 +415,17 @@ Bookmarks prevent commits from being garbage collected during `jj gc`:
 Bookmark name: task-{task_id}
 Example: task-abc123
 
-Created when: Ant completes task
-Deleted when: Task merged to main (by ant-merge)
+Created when: Operator completes task
+Deleted when: Task merged to main (by merge operator)
 ```
 
 ### Merge Flow
 
 ```
 1. All operator tasks complete
-2. Queen spawns ant-merge
+2. Queen spawns merge operator
 
-3. ant-merge claims merge task
+3. Merge operator claims merge task
    └─ Reads all result_commits from completed tasks
    └─ jj new main  (start from main)
    └─ For each commit:
@@ -442,29 +442,29 @@ Deleted when: Task merged to main (by ant-merge)
 
 ## Task Workflow: Pre-Create with Dependencies
 
-The queen pre-creates **all tasks** (operator, review, merge) during decomposition, with dependencies that control execution order. This keeps the queen's main loop simple: just spawn ants for ready tasks.
+The queen pre-creates **all tasks** (operator, review, merge) during decomposition, with dependencies that control execution order. This keeps the queen's main loop simple: just spawn operators for ready tasks.
 
 ### Example: "Add login endpoint"
 
 ```
 Queen decomposes into task graph:
-├─ task-001 (ant-operator): "Implement login handler"
+├─ task-001 (operator): "Implement login handler"
 │     model: gpt-4o-mini, provider: openai
 │     dependencies: []
 │
-├─ task-002 (ant-operator): "Implement auth middleware"
+├─ task-002 (operator): "Implement auth middleware"
 │     model: gpt-4o-mini, provider: openai
 │     dependencies: []
 │
-├─ task-003 (ant-review): "Review login handler"
+├─ task-003 (review): "Review login handler"
 │     model: claude-sonnet-4, provider: anthropic  ← Different provider!
 │     dependencies: [task-001]
 │
-├─ task-004 (ant-review): "Review auth middleware"
+├─ task-004 (review): "Review auth middleware"
 │     model: claude-sonnet-4, provider: anthropic
 │     dependencies: [task-002]
 │
-└─ task-005 (ant-merge): "Merge login feature"
+└─ task-005 (merge): "Merge login feature"
       model: gpt-4o, provider: openai
       dependencies: [task-003, task-004]
 ```
@@ -475,7 +475,7 @@ Queen decomposes into task graph:
 async function queenMainLoop() {
   // Subscribe to push notifications
   await Notifications.subscribe("task_completed", handleTaskCompleted)
-  await Notifications.subscribe("ant_idle", handleAntIdle)
+  await Notifications.subscribe("operator_idle", handleOperatorIdle)
 
   // Initial spawn for ready tasks
   await spawnReadyTasks()
@@ -489,8 +489,8 @@ async function handleTaskCompleted(payload: { task_id: string }) {
   await spawnReadyTasks()
 }
 
-async function handleAntIdle(payload: { ant_id: string }) {
-  // An ant is available - assign work if any
+async function handleOperatorIdle(payload: { operator_id: string }) {
+  // An operator is available - assign work if any
   await spawnReadyTasks()
 }
 
@@ -498,19 +498,19 @@ async function spawnReadyTasks() {
   const readyTasks = await Coordinator.getReadyTasks()
 
   for (const task of readyTasks) {
-    // Acquire ant of correct type
-    const ant = await Coordinator.acquireAnt(task.antType)
+    // Acquire operator of correct type
+    const operator = await Coordinator.acquireOperator(task.operatorType)
 
     // Claim task atomically
-    const claimed = await Coordinator.claimTask(task.id, ant.id)
+    const claimed = await Coordinator.claimTask(task.id, operator.id)
     if (!claimed) {
       // Another queen instance claimed it first
-      await Coordinator.releaseAnt(ant.id)
+      await Coordinator.releaseOperator(operator.id)
       continue
     }
 
     // Spawn session with the model specified in the task
-    await spawnAntSession(ant, task)
+    await spawnOperatorSession(operator, task)
   }
 }
 ```

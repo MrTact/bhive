@@ -1,8 +1,8 @@
-# OpenCode Fork Integration Strategy - Ant Army as Native Extension
+# OpenCode Fork Integration Strategy - B'hive as Native Extension
 
 **Strategy Date:** January 23, 2026
-**Approach:** Fork OpenCode and integrate Ant Army capabilities directly
-**Architecture:** One OpenCode instance, "queen" coordinator spawns "ant" subagents
+**Approach:** Fork OpenCode and integrate B'hive capabilities directly
+**Architecture:** One OpenCode instance, "queen" coordinator spawns "operator" subagents
 
 ---
 
@@ -10,9 +10,9 @@
 
 ### Core Philosophy
 
-**Ant Army is not a separate system sitting on top of OpenCode.**
+**B'hive is not a separate system sitting on top of OpenCode.**
 
-**Ant Army IS OpenCode enhanced with:**
+**B'hive IS OpenCode enhanced with:**
 
 - Multi-agent parallel orchestration
 - Aggressive task decomposition
@@ -37,24 +37,24 @@
 │  │  │  - Decomposes into subtasks (RLM)             │  │  │
 │  │  │  - Queries LEGOMem for patterns                │  │  │
 │  │  │  - Routes tasks to appropriate models          │  │  │
-│  │  │  - Spawns ant subagents                        │  │  │
+│  │  │  - Spawns operator subagents                   │  │  │
 │  │  │  - Aggregates results                          │  │  │
 │  │  └────────────────┬───────────────────────────────┘  │  │
 │  │                   │                                   │  │
 │  │      ┌────────────┴────────────┬──────────────┐      │  │
 │  │      │                         │              │      │  │
 │  │  ┌───▼──────────┐      ┌───────▼────┐  ┌─────▼───┐  │  │
-│  │  │ Ant #1       │      │ Ant #2     │  │ Ant #N  │  │  │
+│  │  │ Op #1        │      │ Op #2      │  │ Op #N   │  │  │
 │  │  │ (Subagent)   │ ...  │ (Subagent) │  │(Subagent│  │  │
 │  │  │              │      │            │  │         │  │  │
-│  │  │ Type: dev    │      │ Type: rev  │  │Type: dev│  │  │
+│  │  │ Type: dev    │      │ Type: rev  │  │Type:dev │  │  │
 │  │  │ Workspace: 1 │      │ Workspace:2│  │Wrkspc: N│  │  │
 │  │  └──────────────┘      └────────────┘  └─────────┘  │  │
 │  │                                                       │  │
 │  └───────────────────────────────────────────────────────┘  │
 │                                                             │
 │  Enhanced OpenCode Modules:                                 │
-│  ├─ agent/           (+ queen, ant-dev, ant-review, etc.)  │
+│  ├─ agent/           (+ queen, operator, review, etc.)     │
 │  ├─ task/            (+ decomposition engine)              │
 │  ├─ memory/          (+ LEGOMem pattern storage)           │
 │  ├─ routing/         (+ intelligent model selection)       │
@@ -82,18 +82,18 @@ $ opencode
 [Queen] Analyzing task...
 [Queen] Querying pattern library... (found similar: jwt-auth-template)
 [Queen] Decomposing into 8 subtasks...
-[Queen] Spawning 8 developer ants...
+[Queen] Spawning 8 developer operators...
 
 # TUI shows multi-agent dashboard
 ┌─────────────────────────────────────────────────┐
 │ Task: Add JWT authentication                   │
 │ Progress: ████████░░░░ 67% (8/12 subtasks)     │
 │                                                │
-│ Active Ants:                                   │
-│  🐜 Ant-1 [Dev]  "Generate JWT utils"     ✅   │
-│  🐜 Ant-2 [Dev]  "Create middleware"      80%  │
-│  🐜 Ant-3 [Dev]  "Update login route"     45%  │
-│  🐜 Ant-4 [Rev]  "Review middleware"      30%  │
+│ Active Operators:                              │
+│  🐝 Op-1 [Dev]  "Generate JWT utils"      ✅   │
+│  🐝 Op-2 [Dev]  "Create middleware"       80%  │
+│  🐝 Op-3 [Dev]  "Update login route"      45%  │
+│  🐝 Op-4 [Rev]  "Review middleware"       30%  │
 │  ...                                           │
 │                                                │
 │ [Pause] [Details] [Adjust Speed/Cost]         │
@@ -112,9 +112,9 @@ $ opencode
 4. **Queen queries LEGOMem** → Uses new `memory/legomem.ts` module
 5. **Queen routes models** → Uses new `routing/model-router.ts` module
 6. **Queen spawns subagents** → Creates child sessions (extends `session/`)
-7. **Ants execute in parallel** → Each in isolated workspace (extends `vcs/`)
+7. **Operators execute in parallel** → Each in isolated workspace (extends `vcs/`)
 8. **Queen monitors progress** → Updates parent session state
-9. **Review ants validate** → Separate subagents for quality
+9. **Review operators validate** → Separate subagents for quality
 10. **Queen aggregates results** → Merges changes, updates session
 11. **TUI displays progress** → New multi-agent dashboard components
 
@@ -144,27 +144,27 @@ export const agents = {
   plan: { name: "plan", mode: "primary", ... },
   general: { name: "general", mode: "subagent", ... },
 
-  // NEW: Ant Army agents
+  // NEW: B'hive agents
   queen: {
     name: "queen",
     mode: "primary",
-    description: "Coordinator that decomposes tasks and spawns ants",
+    description: "Coordinator that decomposes tasks and spawns operators",
     canSpawnSubagents: true,
-    tools: ["decompose", "spawn_ant", "aggregate", ...],
+    tools: ["decompose", "spawn_operator", "aggregate", ...],
     ...
   },
-  antDeveloper: {
-    name: "ant-operator",
+  operator: {
+    name: "operator",
     mode: "subagent",
-    description: "Developer ant - executes focused subtasks",
+    description: "Developer operator - executes focused subtasks",
     parentOnly: "queen",  // Only queen can spawn
     maxSteps: 10,
     ...
   },
-  antReview: {
-    name: "ant-review",
+  review: {
+    name: "review",
     mode: "subagent",
-    description: "Review ant - validates code with clean context",
+    description: "Review operator - validates code with clean context",
     parentOnly: "queen",
     permission: { edit: "deny", write: "deny" },
     ...
@@ -186,7 +186,7 @@ export interface SubTask {
   dependencies: string[]
   complexity: "low" | "medium" | "high"
   suggestedModel?: string
-  antType: "developer" | "review" | "integration"
+  operatorType: "developer" | "review" | "integration"
 }
 
 export interface DecomposedTask {

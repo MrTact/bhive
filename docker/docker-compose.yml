@@ -1,8 +1,8 @@
-# Ant Army Coordination Infrastructure
+# B'hive Coordination Infrastructure
 #
-# This Docker Compose stack provides the shared infrastructure for all ant-army projects.
+# This Docker Compose stack provides the shared infrastructure for all bhive projects.
 # It includes:
-# - PostgreSQL: Task coordination and ant lifecycle management
+# - PostgreSQL: Task coordination and bee lifecycle management
 # - Future services: Qdrant (vector DB), Redis (caching), etc.
 #
 # Usage:
@@ -13,18 +13,18 @@
 
 version: '3.8'
 
-name: ant-army
+name: bhive
 
 services:
   postgres:
     image: postgres:16-alpine
-    container_name: ant-army-postgres
+    container_name: bhive-postgres
     restart: unless-stopped
 
     environment:
       # Main database credentials
-      POSTGRES_USER: ${POSTGRES_USER:-ant_army}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-ant_army_dev}
+      POSTGRES_USER: ${POSTGRES_USER:-bhive}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-bhive_dev}
       POSTGRES_DB: postgres  # Default database
 
       # Enable multiple database support
@@ -35,7 +35,7 @@ services:
 
     volumes:
       # Persistent data storage (centralized location)
-      - ${ANT_ARMY_DATA_DIR:-~/.config/ant-army/data/postgres}:/var/lib/postgresql/data
+      - ${BHIVE_DATA_DIR:-~/.config/bhive/data/postgres}:/var/lib/postgresql/data
 
       # Initialization scripts (run on first start)
       - ./init-db.sh:/docker-entrypoint-initdb.d/init-db.sh:ro
@@ -44,25 +44,25 @@ services:
       - ./migrations:/migrations:ro
 
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-ant_army} -d postgres"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-bhive} -d postgres"]
       interval: 10s
       timeout: 5s
       retries: 5
 
     networks:
-      - ant-army
+      - bhive
 
-  # Ant Army API Server
+  # B'hive API Server
   api:
     build:
       context: ..
       dockerfile: docker/Dockerfile.api
-    container_name: ant-army-api
+    container_name: bhive-api
     restart: unless-stopped
 
     environment:
-      DATABASE_URL: postgresql://${POSTGRES_USER:-ant_army}:${POSTGRES_PASSWORD:-ant_army_dev}@postgres:5432/postgres
-      RUST_LOG: ${RUST_LOG:-ant_army_api=debug,tower_http=debug}
+      DATABASE_URL: postgresql://${POSTGRES_USER:-bhive}:${POSTGRES_PASSWORD:-bhive_dev}@postgres:5432/postgres
+      RUST_LOG: ${RUST_LOG:-bhive_api=debug,tower_http=debug}
 
     ports:
       - "${API_PORT:-3030}:3030"
@@ -72,35 +72,35 @@ services:
         condition: service_healthy
 
     networks:
-      - ant-army
+      - bhive
 
   # Future services can be added here:
   #
   # qdrant:
   #   image: qdrant/qdrant:latest
-  #   container_name: ant-army-qdrant
+  #   container_name: bhive-qdrant
   #   restart: unless-stopped
   #   ports:
   #     - "${QDRANT_PORT:-6333}:6333"
   #   volumes:
-  #     - ${ANT_ARMY_DATA_DIR:-~/.config/ant-army/data/qdrant}:/qdrant/storage
+  #     - ${BHIVE_DATA_DIR:-~/.config/bhive/data/qdrant}:/qdrant/storage
   #   networks:
-  #     - ant-army
+  #     - bhive
   #
   # redis:
   #   image: redis:7-alpine
-  #   container_name: ant-army-redis
+  #   container_name: bhive-redis
   #   restart: unless-stopped
   #   ports:
   #     - "${REDIS_PORT:-6379}:6379"
   #   volumes:
-  #     - ${ANT_ARMY_DATA_DIR:-~/.config/ant-army/data/redis}:/data
+  #     - ${BHIVE_DATA_DIR:-~/.config/bhive/data/redis}:/data
   #   networks:
-  #     - ant-army
+  #     - bhive
 
 networks:
-  ant-army:
-    name: ant-army
+  bhive:
+    name: bhive
     driver: bridge
 
 # Volume definitions (optional - using bind mounts for easier access)

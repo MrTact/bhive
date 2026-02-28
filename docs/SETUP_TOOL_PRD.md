@@ -1,4 +1,4 @@
-# Ant Army Setup Tool - Mini PRD
+# B'hive Setup Tool - Mini PRD
 
 **Status:** Planning
 **Last Updated:** February 16, 2026
@@ -7,15 +7,15 @@
 
 ## Problem
 
-Ant Army creates sibling workspace directories next to the user's repository for parallel ant execution. Most developers organize their repos under a single parent directory (e.g., `~/git-repos/`), which creates issues:
+B'hive creates sibling workspace directories next to the user's repository for parallel operator execution. Most developers organize their repos under a single parent directory (e.g., `~/git-repos/`), which creates issues:
 
-1. **Pollution** - Workspace directories (`brave-lion/`, `cosmic-ant/`) mix with unrelated projects
-2. **Name collisions** - Ant names from different projects could conflict
-3. **Confusion** - Users don't expect ant army to create directories outside their repo
+1. **Pollution** - Workspace directories (`brave-lion/`, `cosmic-bee/`) mix with unrelated projects
+2. **Name collisions** - Operator names from different projects could conflict
+3. **Confusion** - Users don't expect bhive to create directories outside their repo
 
 ## Solution
 
-A **setup tool** that runs automatically when a user first activates Ant Army, ensuring their environment is properly configured before spawning any ants.
+A **setup tool** that runs automatically when a user first activates B'hive, ensuring their environment is properly configured before spawning any operators.
 
 ---
 
@@ -25,15 +25,15 @@ A **setup tool** that runs automatically when a user first activates Ant Army, e
 
 When the user switches to the `queen` agent (via `/switch queen` or TUI agent picker):
 
-1. Check if Ant Army setup has been completed for this project
+1. Check if B'hive setup has been completed for this project
 2. If not, run the setup tool sequence before activating queen mode
-3. Store completion state in project config (`.opencode/ant-army.json`)
+3. Store completion state in project config (`.opencode/bhive.json`)
 
 ```
 User: /switch queen
 
-[Ant Army Setup]
-This is your first time using Ant Army in this project.
+[B'hive Setup]
+This is your first time using B'hive in this project.
 Running setup checks...
 
 ✓ VCS detected: jujutsu
@@ -42,11 +42,11 @@ Running setup checks...
 Your repository is at: ~/git-repos/my-project/
 Parent directory contains 12 other items.
 
-Ant Army needs a clean parent directory to create workspace siblings.
+B'hive needs a clean parent directory to create workspace siblings.
 Recommended structure:
   ~/git-repos/my-project/
   └── repo/          <- move your repo here
-  └── workspaces/    <- ant workspaces go here
+  └── workspaces/    <- operator workspaces go here
 
 Would you like help reorganizing? (y/n)
 ```
@@ -153,7 +153,7 @@ The setup tool is designed to be extensible. Anticipated checks:
 | VCS availability       | Ensure jj/git installed                  | 1     |
 | VCS initialization     | Ensure repo is initialized               | 1     |
 | Disk space             | Warn if < 5GB available                  | 2     |
-| Config validation      | Validate ant-army settings               | 2     |
+| Config validation      | Validate bhive settings                  | 2     |
 | Model access           | Verify API keys for configured providers | 2     |
 | Workspace cleanup      | Offer to clean stale workspaces          | 3     |
 
@@ -163,7 +163,7 @@ The setup tool is designed to be extensible. Anticipated checks:
 
 ### Project-level state
 
-`.opencode/ant-army.json`:
+`.opencode/bhive.json`:
 
 ```json
 {
@@ -184,9 +184,9 @@ The setup tool is designed to be extensible. Anticipated checks:
 
 Users can re-run setup via:
 
-- `/ant-army setup` command
+- `/bhive setup` command
 - Automatic re-run when `setupVersion` < current version
-- Manual deletion of `.opencode/ant-army.json`
+- Manual deletion of `.opencode/bhive.json`
 
 ---
 
@@ -197,7 +197,7 @@ Users can re-run setup via:
 ```
 User: /switch queen
 
-[Ant Army Setup]
+[B'hive Setup]
 Running first-time setup checks...
 
 ✓ VCS: jujutsu detected
@@ -205,7 +205,7 @@ Running first-time setup checks...
 ✓ Configuration: valid
 
 Setup complete! Queen agent activated.
-You can now spawn ants for parallel development.
+You can now spawn operators for parallel development.
 
 Queen: How can I help you today?
 ```
@@ -215,7 +215,7 @@ Queen: How can I help you today?
 ```
 User: /switch queen
 
-[Ant Army Setup]
+[B'hive Setup]
 Running first-time setup checks...
 
 ✓ VCS: jujutsu detected
@@ -228,8 +228,8 @@ Parent contents:
   - another-repo/
   - notes.txt
 
-Ant Army creates workspace directories as siblings to your repo.
-This would pollute ~/git-repos/ with ant workspaces.
+B'hive creates workspace directories as siblings to your repo.
+This would pollute ~/git-repos/ with operator workspaces.
 
 Recommended fix: Move repo to ~/git-repos/opencode/dev/
   ~/git-repos/opencode/
@@ -268,7 +268,7 @@ Please restart opencode from the new location:
 
 ```
 packages/opencode/src/
-├── ant-army/
+├── bhive/
 │   ├── setup/
 │   │   ├── index.ts          # Setup runner
 │   │   ├── checks/
@@ -290,7 +290,7 @@ packages/opencode/src/
    - `path.join(path.dirname(Instance.worktree), "workspaces")`
 
 3. **Configuration** (`config/config.ts`)
-   - Add `antArmy.workspacesRoot` option for advanced users
+   - Add `bhive.workspacesRoot` option for advanced users
 
 ---
 

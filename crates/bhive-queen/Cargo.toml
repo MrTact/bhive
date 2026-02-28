@@ -1,0 +1,21 @@
+[package]
+name = "bhive-queen"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[dependencies]
+bhive-core = { path = "../bhive-core" }
+
+tokio = { workspace = true }
+anyhow = { workspace = true }
+tracing = { workspace = true }
+serde = { workspace = true }
+uuid = { workspace = true }
+chrono = { workspace = true }
+
+# Async trait support
+async-trait = "0.1"
+
+# TODO: Add rig-core and genai when implementing

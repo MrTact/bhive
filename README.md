@@ -1,16 +1,16 @@
-# Ant Army
+# B'hive
 
 **Massively parallel AI agent orchestration for code generation**
 
-Ant Army is a Rust-based orchestration system that coordinates hundreds to thousands of autonomous AI agents ("worker ants") under a single coordinating "queen" agent. It uses multi-provider LLM support (OpenAI + Anthropic) to enable cross-provider review for quality assurance.
+B'hive is a Rust-based orchestration system that coordinates hundreds to thousands of autonomous AI agents ("worker bees") under a single coordinating "queen" agent. It uses multi-provider LLM support (OpenAI + Anthropic) to enable cross-provider review for quality assurance.
 
 ## Architecture
 
-Ant Army uses a **headless service architecture**:
+B'hive uses a **headless service architecture**:
 
 ```
 ┌─────────────────────────────────────────────────┐
-│      Ant Army Orchestration Service (Rust)      │
+│       B'hive Orchestration Service (Rust)       │
 │  • Queen agent spawning workers                │
 │  • Task decomposition & distribution           │
 │  • Cross-provider routing (OpenAI → Anthropic) │
@@ -29,13 +29,13 @@ Ant Army uses a **headless service architecture**:
 ## Project Structure
 
 ```
-ant-army/repo/main/
+bhive/repo/main/
 ├── crates/
-│   ├── ant-army-core/      # Core orchestration logic
-│   ├── ant-army-api/       # REST/WebSocket API server
-│   ├── ant-army-cli/       # CLI client
-│   ├── ant-army-queen/     # Queen agent implementation
-│   └── ant-army-worker/    # Worker ant implementation
+│   ├── bhive-core/      # Core orchestration logic
+│   ├── bhive-api/       # REST/WebSocket API server
+│   ├── bhive-cli/       # CLI client
+│   ├── bhive-queen/     # Queen agent implementation
+│   └── bhive-worker/    # Worker bee implementation
 ├── docs/                   # Documentation
 │   ├── PRD.md
 │   ├── ARCHITECTURE.md
@@ -66,11 +66,11 @@ ant-army/repo/main/
 
 ```bash
 # Clone and build
-cd /Users/tkeating/git-repos/ant-army/repo/main
+cd /Users/tkeating/git-repos/bhive/repo/main
 cargo build --release
 
 # Set up database
-createdb ant_army
+createdb bhive
 sqlx migrate run
 
 # Configure providers
@@ -78,10 +78,10 @@ export OPENAI_API_KEY="your-key"
 export ANTHROPIC_API_KEY="your-key"
 
 # Start the service
-cargo run --bin ant-army-api
+cargo run --bin bhive-api
 
 # In another terminal, use the CLI
-cargo run --bin ant-army-cli -- task create "Implement user authentication"
+cargo run --bin bhive -- task create "Implement user authentication"
 ```
 
 ## Development Status

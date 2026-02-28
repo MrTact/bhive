@@ -1,4 +1,4 @@
-# Ant Army TUI - Implementation Plan
+# B'hive TUI - Implementation Plan
 
 **Version:** 0.1  
 **Last Updated:** February 18, 2026  
@@ -8,7 +8,7 @@
 
 ## Overview
 
-The TUI is a Rust-based terminal interface for monitoring and controlling the Ant Army orchestration service. It connects to the headless service via REST/WebSocket API, providing real-time visibility into task decomposition and worker activity.
+The TUI is a Rust-based terminal interface for monitoring and controlling the B'hive orchestration service. It connects to the headless service via REST/WebSocket API, providing real-time visibility into task decomposition and worker activity.
 
 **Design Philosophy:**
 - htop/k9s-style interface (terminal-native, keyboard-driven)
@@ -34,7 +34,7 @@ The TUI is a Rust-based terminal interface for monitoring and controlling the An
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                      Ant Army TUI                           │
+│                      B'hive TUI                             │
 ├─────────────────────────────────────────────────────────────┤
 │                                                             │
 │  ┌─────────────┐     ┌─────────────┐     ┌─────────────┐   │
@@ -92,7 +92,7 @@ The TUI is a Rust-based terminal interface for monitoring and controlling the An
 
 ```
 ╔═══════════════════════════════════════════════════════════════════════╗
-║ 🐜 ANT ARMY                                    Connected │ localhost:3030 ║
+║ 🐝 B'HIVE                                      Connected │ localhost:3030 ║
 ╠═══════════════════════════════════════════════════════════════════════╣
 ║ QUEEN STATUS                           │ ACTIVE WORKERS              ║
 ║ ─────────────────────────────────────  │ ───────────────────────────  ║
@@ -102,10 +102,10 @@ The TUI is a Rust-based terminal interface for monitoring and controlling the An
 ╠═══════════════════════════════════════════════════════════════════════╣
 ║ RECENT EVENTS                                                         ║
 ║ ──────────────────────────────────────────────────────────────────── ║
-║ 10:34:12 │ worker_complete │ ant-042 │ "Implement JWT validation"   ║
-║ 10:34:08 │ worker_spawned  │ ant-048 │ "Write auth middleware tests" ║
+║ 10:34:12 │ worker_complete │ op-042  │ "Implement JWT validation"   ║
+║ 10:34:08 │ worker_spawned  │ op-048  │ "Write auth middleware tests" ║
 ║ 10:34:02 │ task_progress   │ task-01 │ 67% (32/48 subtasks)         ║
-║ 10:33:58 │ worker_progress │ ant-035 │ Generating... (2.4k tokens)  ║
+║ 10:33:58 │ worker_progress │ op-035  │ Generating... (2.4k tokens)  ║
 ╠═══════════════════════════════════════════════════════════════════════╣
 ║ [d]ashboard [t]asks [w]orkers [l]ogs [?]help [q]uit                  ║
 ╚═══════════════════════════════════════════════════════════════════════╝
@@ -115,13 +115,13 @@ The TUI is a Rust-based terminal interface for monitoring and controlling the An
 
 ```
 ╔═══════════════════════════════════════════════════════════════════════╗
-║ 🐜 TASKS                                               Press ? for help ║
+║ 🐝 TASKS                                               Press ? for help ║
 ╠═══════════════════════════════════════════════════════════════════════╣
 ║                                                                        ║
 ║  ▼ task-001: Implement user authentication [▓▓▓▓▓▓▓░░░] 67%          ║
-║    ├─ ✓ subtask-001: Define auth middleware         (ant-012, 2.3s)   ║
-║    ├─ ✓ subtask-002: Implement JWT generation       (ant-013, 4.1s)   ║
-║    ├─ ● subtask-003: Implement JWT validation       (ant-042, running)║
+║    ├─ ✓ subtask-001: Define auth middleware         (op-012, 2.3s)    ║
+║    ├─ ✓ subtask-002: Implement JWT generation       (op-013, 4.1s)    ║
+║    ├─ ● subtask-003: Implement JWT validation       (op-042, running) ║
 ║    ├─ ○ subtask-004: Add auth routes                (pending)         ║
 ║    ├─ ○ subtask-005: Write unit tests - gen         (pending)         ║
 ║    └─ ...4 more                                                       ║
@@ -138,16 +138,16 @@ The TUI is a Rust-based terminal interface for monitoring and controlling the An
 
 ```
 ╔═══════════════════════════════════════════════════════════════════════╗
-║ 🐜 WORKERS (47 total)                                  Filter: active   ║
+║ 🐝 WORKERS (47 total)                                  Filter: active   ║
 ╠═══════════════════════════════════════════════════════════════════════╣
 ║ ID      │ Status    │ Task                          │ Duration │ Tokens║
 ║ ────────┼───────────┼───────────────────────────────┼──────────┼───────║
-║ ant-042 │ ● running │ Implement JWT validation      │    12.3s │  3.2k ║
-║ ant-035 │ ● running │ Add password hashing          │     8.7s │  2.1k ║
-║ ant-048 │ ○ pending │ Write auth middleware tests   │        - │     - ║
-║ ant-041 │ ✓ done    │ Define auth middleware        │     2.3s │  1.8k ║
-║ ant-039 │ ✓ done    │ Implement JWT generation      │     4.1s │  2.4k ║
-║ ant-038 │ ✗ failed  │ Add rate limiting             │     6.2s │  1.2k ║
+║ op-042  │ ● running │ Implement JWT validation      │    12.3s │  3.2k ║
+║ op-035  │ ● running │ Add password hashing          │     8.7s │  2.1k ║
+║ op-048  │ ○ pending │ Write auth middleware tests   │        - │     - ║
+║ op-041  │ ✓ done    │ Define auth middleware        │     2.3s │  1.8k ║
+║ op-039  │ ✓ done    │ Implement JWT generation      │     4.1s │  2.4k ║
+║ op-038  │ ✗ failed  │ Add rate limiting             │     6.2s │  1.2k ║
 ║                                                                        ║
 ╠═══════════════════════════════════════════════════════════════════════╣
 ║ ↑↓ navigate │ ⏎ inspect │ l logs │ f filter │ r retry failed │ ← back║
@@ -158,14 +158,14 @@ The TUI is a Rust-based terminal interface for monitoring and controlling the An
 
 ```
 ╔═══════════════════════════════════════════════════════════════════════╗
-║ 🐜 WORKER: ant-042                                                     ║
+║ 🐝 WORKER: op-042                                                      ║
 ╠═══════════════════════════════════════════════════════════════════════╣
 ║ Status: running        │ Provider: openai/gpt-4o                      ║
 ║ Task: Implement JWT validation                                        ║
 ║ Parent: task-001 (Implement user authentication)                      ║
 ║ Started: 10:33:45      │ Duration: 12.3s                              ║
 ║ Tokens: 3,247 in / 892 out │ Cost: $0.0042                           ║
-║ Workspace: jj://ant-042-workspace                                     ║
+║ Workspace: jj://op-042-workspace                                      ║
 ╠═══════════════════════════════════════════════════════════════════════╣
 ║ CONTEXT (compressed, 487 tokens)                                      ║
 ║ ──────────────────────────────────────────────────────────────────── ║
@@ -189,16 +189,16 @@ The TUI is a Rust-based terminal interface for monitoring and controlling the An
 
 ```
 ╔═══════════════════════════════════════════════════════════════════════╗
-║ 🐜 LOGS                                    Filter: ant-042 │ ● Live    ║
+║ 🐝 LOGS                                    Filter: op-042  │ ● Live    ║
 ╠═══════════════════════════════════════════════════════════════════════╣
-║ 10:33:45.123 │ INFO  │ ant-042 │ Worker spawned                       ║
-║ 10:33:45.456 │ INFO  │ ant-042 │ Context loaded (487 tokens)          ║
-║ 10:33:46.012 │ DEBUG │ ant-042 │ Sending to openai/gpt-4o             ║
-║ 10:33:48.234 │ INFO  │ ant-042 │ Reading src/auth/jwt.rs              ║
-║ 10:33:49.567 │ INFO  │ ant-042 │ Tool: edit_file src/auth/jwt.rs      ║
-║ 10:33:52.890 │ DEBUG │ ant-042 │ Response: 892 tokens                 ║
-║ 10:33:53.123 │ INFO  │ ant-042 │ Committed: jj abc123                 ║
-║ 10:33:54.456 │ INFO  │ ant-042 │ Tool: edit_file src/auth/middleware  ║
+║ 10:33:45.123 │ INFO  │ op-042  │ Worker spawned                       ║
+║ 10:33:45.456 │ INFO  │ op-042  │ Context loaded (487 tokens)          ║
+║ 10:33:46.012 │ DEBUG │ op-042  │ Sending to openai/gpt-4o             ║
+║ 10:33:48.234 │ INFO  │ op-042  │ Reading src/auth/jwt.rs              ║
+║ 10:33:49.567 │ INFO  │ op-042  │ Tool: edit_file src/auth/jwt.rs      ║
+║ 10:33:52.890 │ DEBUG │ op-042  │ Response: 892 tokens                 ║
+║ 10:33:53.123 │ INFO  │ op-042  │ Committed: jj abc123                 ║
+║ 10:33:54.456 │ INFO  │ op-042  │ Tool: edit_file src/auth/middleware  ║
 ║                                                                        ║
 ║ ▼ Auto-scroll enabled                                                 ║
 ╠═══════════════════════════════════════════════════════════════════════╣
@@ -212,7 +212,7 @@ A dense grid visualization showing all ants at a glance. Each cell represents on
 
 ```
 ╔═══════════════════════════════════════════════════════════════════════╗
-║ 🐜 SWARM (147 ants)                                      Hover for info ║
+║ 🐝 SWARM (147 operators)                                 Hover for info ║
 ╠═══════════════════════════════════════════════════════════════════════╣
 ║                                                                        ║
 ║   ● ● ◐ ● ○ ● ● ◐ ● ● ○ ● ● ● ◐ ● ○ ● ● ● ◐ ● ● ○ ● ●              ║
@@ -223,7 +223,7 @@ A dense grid visualization showing all ants at a glance. Each cell represents on
 ║   ● ○ ● ● ● ◐ ● ● ● ○ ● ● ● ◐ ● ● ○ ● ● ●                          ║
 ║                                                                        ║
 ║   ┌─────────────────────────────────┐                                 ║
-║   │ ant-042 (operator)              │  ← Hover tooltip                ║
+║   │ op-042 (operator)               │  ← Hover tooltip                ║
 ║   │ Status: working (12.3s)         │                                 ║
 ║   │ Task: Implement JWT validation  │                                 ║
 ║   │ Provider: openai/gpt-4o         │                                 ║
@@ -255,7 +255,7 @@ A dense grid visualization showing all ants at a glance. Each cell represents on
 
 **Interaction:**
 - **Mouse hover**: Shows tooltip with ant details
-- **Mouse click**: Opens inspect view for that ant
+- **Mouse click**: Opens inspect view for that operator
 - **Keyboard**: Arrow keys move highlight, Enter to inspect
 
 **Terminal compatibility notes:**
@@ -459,7 +459,7 @@ tui/
 
 ```toml
 [package]
-name = "ant-army-tui"
+name = "bhive-tui"
 version = "0.1.0"
 edition = "2024"
 

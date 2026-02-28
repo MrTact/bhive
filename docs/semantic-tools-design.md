@@ -19,7 +19,7 @@ Encapsulate local environment knowledge (jujutsu, fd, rg, etc.) into a semantic 
 | Semantic tool interface | Straightforward — define a schema for requests like `{action: "find_files", pattern: "*.ts", containing: "TODO"}` |
 | Environment registry | Simple key-value store mapping operations → shell commands. Can be JSONC in project root |
 | Learning unknown tools | Moderate complexity — need an LLM call with examples of existing tools, then validate the generated command works before storing |
-| Version-controlled sharing | Easy — store in `.ant-army/tools.jsonc` in the repo |
+| Version-controlled sharing | Easy — store in `.bhive/tools.jsonc` in the repo |
 
 ## Proposed Architecture
 
@@ -52,7 +52,7 @@ User request → Queen Agent
    - Try to learn → if that fails → ask user → store their answer
 
 4. **Scope separation** — Consider two registries:
-   - `.ant-army/environment.jsonc` — local tooling (jj, fd, rg)
-   - `.ant-army/standards.jsonc` — project rules (no `any`, naming conventions)
+   - `.bhive/environment.jsonc` — local tooling (jj, fd, rg)
+   - `.bhive/standards.jsonc` — project rules (no `any`, naming conventions)
 
 5. **LLM training bias** — Current LLMs are trained heavily on bash/git patterns. Will need strong system prompts to get them to consistently use semantic requests instead of falling back to `bash -c "git ..."`.

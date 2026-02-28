@@ -1,4 +1,4 @@
-# Speculative Decoding - Analysis for Ant Army
+# Speculative Decoding - Analysis for B'hive
 
 **Research Date:** January 23, 2026
 **Keywords:** inference-optimization, infrastructure, deployment, deferred
@@ -36,7 +36,7 @@ Result: Verifying multiple tokens at once is faster than generating one-by-one
 
 ---
 
-## Applicability to Ant Army: ⏸️ **DEFER - Infrastructure Concern**
+## Applicability to B'hive: ⏸️ **DEFER - Infrastructure Concern**
 
 ### Why It Doesn't Apply to Our Application:
 
@@ -49,7 +49,7 @@ Speculative decoding lives:
 ├─ TensorRT-LLM deployment
 └─ Provider-managed (OpenAI, Anthropic)
 
-Ant Army lives:
+B'hive lives:
 ├─ API calls to LLM providers
 ├─ Orchestration logic
 ├─ Agent coordination
@@ -71,7 +71,7 @@ Speculative decoding shines when:
 ✅ High batch sizes (many parallel requests)
 ```
 
-Ant Army's pattern:
+B'hive's pattern:
 
 ```
 ❌ Many small agent calls (not one long generation)
@@ -89,7 +89,7 @@ Traditional (one big call):
 ├─ Single LLM call: 2000 token output
 └─ Speculative decoding: 2-3× faster
 
-Ant Army (orchestrated):
+B'hive (orchestrated):
 ├─ Orchestrator: 50 tokens
 ├─ Code agent: 300 tokens
 ├─ Test agent: 200 tokens
@@ -107,7 +107,7 @@ Impact: Minimal (each call too short to benefit)
 - Coordination between draft/main model
 - Works best with predictable patterns
 
-**Ant Army characteristics:**
+**B'hive characteristics:**
 
 - Diverse tasks (auth ≠ testing ≠ git)
 - Short, focused outputs per agent
@@ -179,7 +179,7 @@ Many parallel requests:
 
 - 2-line change in vLLM configuration
 - Document in deployment guide
-- Not a design decision for Ant Army core
+- Not a design decision for B'hive core
 
 ---
 

@@ -11,7 +11,7 @@ Instead of a long-lived queen that accumulates context, the queen operates as a 
 
 1. **Wake** - Fresh context, reads coordination layer state
 2. **Assess** - Determines project status from tasks/logs/commits
-3. **Dispatch** - Spawns ants for ready tasks
+3. **Dispatch** - Spawns operators for ready tasks
 4. **Recycle** - Terminates; next wake starts clean
 
 The queen becomes a pure function: `f(coordination_state) → [new_tasks, status_updates]`
@@ -29,7 +29,7 @@ Planning requires holistic understanding that doesn't decompose into small tasks
 
 1. **Single planning phase** - First wake creates full task DAG with clean context; subsequent wakes are tactical
 2. **Plan-as-artifact** - Store structured plan in coordination layer; queen reads plan + progress, evolves as needed
-3. **Lieutenant ants** - Queen coordinates ~5 component leads who handle sub-decomposition
+3. **Lieutenant operators** - Queen coordinates ~5 component leads who handle sub-decomposition
 
 ## Connection to LEGOMem
 

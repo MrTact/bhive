@@ -1,4 +1,4 @@
-# Ant Army Headless Architecture
+# B'hive Headless Architecture
 
 ## Decision: Service-First, UI-Later
 
@@ -8,7 +8,7 @@ After analyzing TUI complexity (78K LOC for Codex, 13K LOC for OpenCode), we're 
 
 ```
 ┌─────────────────────────────────────────────────┐
-│      Ant Army Orchestration Service (Rust)      │
+│       B'hive Orchestration Service (Rust)       │
 │                                                 │
 │  Core:                                         │
 │  • Rig (agent framework)                       │
@@ -108,7 +108,7 @@ curl -N http://localhost:3030/api/v1/tasks/550e8400-e29b-41d4-a716-446655440000/
 - [ ] Worker spawning (Tokio tasks)
 - [ ] Cross-provider routing
 - [ ] SSE streaming for task events
-- [ ] Simple CLI client (`ant-army` command)
+- [ ] Simple CLI client (`bhive` command)
 
 **Deliverable**: Can spawn 100 workers via API/CLI
 
@@ -163,7 +163,7 @@ curl -N http://localhost:3030/api/v1/tasks/550e8400-e29b-41d4-a716-446655440000/
 ### 4. Opens New Possibilities
 - **Remote workers**: Run queen in cloud
 - **Multi-user**: Team shares orchestrator
-- **Claude.ai integration**: Ant Army as MCP server
+- **Claude.ai integration**: B'hive as MCP server
 - **Observability**: Metrics/tracing endpoints
 
 ## Technology Stack

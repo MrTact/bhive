@@ -8,19 +8,19 @@
 
 ## Executive Summary
 
-This document analyzes two alternative implementation approaches for Ant Army:
+This document analyzes two alternative implementation approaches for B'hive:
 
-1. **Plugin/Custom Agent Approach** - Implementing Ant Army using OpenCode's existing extensibility mechanisms without forking
-2. **Standalone ACP Server Approach** - Implementing Ant Army as an independent server using the Agent Connect Protocol
+1. **Plugin/Custom Agent Approach** - Implementing B'hive using OpenCode's existing extensibility mechanisms without forking
+2. **Standalone ACP Server Approach** - Implementing B'hive as an independent server using the Agent Connect Protocol
 
 **Key Findings:**
 
 | Approach              | Verdict                     | Summary                                                                                                |
 | --------------------- | --------------------------- | ------------------------------------------------------------------------------------------------------ |
-| Plugin/Custom Agent   | **Maybe, with limitations** | Could work for Phase 1 MVP, but scaling to 100+ ants would require forking anyway                      |
+| Plugin/Custom Agent   | **Maybe, with limitations** | Could work for Phase 1 MVP, but scaling to 100+ operators would require forking anyway                      |
 | Standalone ACP Server | **Maybe, but poor fit**     | ACP is designed for inter-agent orchestration, not IDE integration; would require significant bridging |
 
-**Recommendation:** The current fork-based approach remains the best choice for Ant Army's goals, but the plugin approach could be a stepping stone for early validation.
+**Recommendation:** The current fork-based approach remains the best choice for B'hive's goals, but the plugin approach could be a stepping stone for early validation.
 
 ---
 
@@ -38,9 +38,9 @@ Custom agents can be defined in `opencode.jsonc`:
 {
   "agent": [
     {
-      "name": "ant-operator",
+      "name": "op-dev",
       "mode": "subagent",
-      "description": "Ant Army developer agent",
+      "description": "B'hive developer agent",
       "permission": { "*": "allow" },
       "maxSteps": 10,
       "model": { "modelID": "gpt-4o-mini", "providerID": "openai" },
@@ -69,7 +69,7 @@ The [`task` tool](file:///Volumes/Git/git-repos/opencode/ant-army/packages/openc
 
 | Feature                                  | Feasible?  | How                                   |
 | ---------------------------------------- | ---------- | ------------------------------------- |
-| Custom agent types (queen, ant-operator) | ✅ Yes     | Configuration in opencode.jsonc       |
+| Custom agent types (queen, op-dev)       | ✅ Yes     | Configuration in opencode.jsonc       |
 | Sequential subtask execution             | ✅ Yes     | Existing `task` tool                  |
 | Model routing per agent                  | ✅ Yes     | Agent-level model overrides in config |
 | LEGOMem pattern storage                  | ⚠️ Partial | External MCP server + FAISS           |
@@ -105,15 +105,15 @@ A plugin-based approach could demonstrate:
 - Pattern learning (via external MCP server with vector DB)
 - Custom agent types with model routing
 
-**However, scaling to the Ant Army vision requires forking because:**
+**However, scaling to the B'hive vision requires forking because:**
 
-1. **Parallel Execution** - The `task` tool blocks until completion. True parallelism needs the `spawn_ant` pattern which creates isolated git worktrees and child sessions.
+1. **Parallel Execution** - The `task` tool blocks until completion. True parallelism needs the `spawn_operator` pattern which creates isolated git worktrees and child sessions.
 
-2. **Workspace Isolation** - Each ant needs its own VCS workspace to avoid conflicts. The existing `task` tool shares the workspace.
+2. **Workspace Isolation** - Each operator needs its own VCS workspace to avoid conflicts. The existing `task` tool shares the workspace.
 
-3. **Progress Visibility** - Showing 10-100 concurrent ants in a TUI requires new components, not just configuration.
+3. **Progress Visibility** - Showing 10-100 concurrent operators in a TUI requires new components, not just configuration.
 
-4. **Coordination Database** - At scale (50+ ants), in-memory coordination fails. PostgreSQL integration needs core changes.
+4. **Coordination Database** - At scale (50+ operators), in-memory coordination fails. PostgreSQL integration needs core changes.
 
 ### Pros and Cons: Plugin Approach
 
@@ -128,9 +128,9 @@ A plugin-based approach could demonstrate:
 **Cons:**
 
 - ❌ Sequential execution limits speedup (no parallelism)
-- ❌ Cannot achieve 10-100+ concurrent ants
+- ❌ Cannot achieve 10-100+ concurrent operators
 - ❌ No workspace isolation (merge conflicts inevitable)
-- ❌ Limited observability (can't build multi-ant TUI)
+- ❌ Limited observability (can't build multi-operator TUI)
 - ❌ Would need to migrate to fork eventually anyway
 - ❌ Jujutsu support impossible without code changes
 
@@ -142,24 +142,24 @@ The plugin approach could work as a **stepping stone**:
 
 ```
 Phase 0 (2-3 weeks): Plugin-based prototype
-├── Custom queen/ant agents via config
+├── Custom queen/operator agents via config
 ├── Sequential decomposition via task tool
 ├── External LEGOMem via MCP server
 ├── Validate decomposition strategy
 └── Measure: Does decomposition improve quality?
 
 Phase 1+: Fork-based implementation
-├── Parallel execution via spawn_ant
+├── Parallel execution via spawn_operator
 ├── Isolated workspaces
 ├── Multi-agent TUI
-└── Full Ant Army vision
+└── Full B'hive vision
 ```
 
 However, looking at the current codebase, **the fork work is already substantially done**:
 
-- `spawn_ant` tool exists ([spawn-ant.ts](file:///Volumes/Git/git-repos/opencode/ant-army/packages/opencode/src/tool/spawn-ant.ts))
+- `spawn_operator` tool exists ([spawn-operator.ts](file:///Volumes/Git/git-repos/opencode/bhive/packages/opencode/src/tool/spawn-operator.ts))
 - Parent/child session support is implemented
-- Ant-specific bus events are defined
+- Operator-specific bus events are defined
 - The foundation for parallel execution is in place
 
 **Recommendation:** Continue with the fork. The exploratory plugin work would duplicate effort already completed.
@@ -200,7 +200,7 @@ Key features:
 - **Interrupts**: Agents can pause and request input
 - **Checkpoints**: Track state history, enable replay
 
-### How Ant Army Could Use ACP
+### How B'hive Could Use ACP
 
 **Architecture:**
 
@@ -221,12 +221,12 @@ Key features:
                    │
                    ▼
 ┌──────────────────────────────────────────────────┐
-│              Ant Army ACP Server                 │
+│              B'hive ACP Server                   │
 │                                                  │
 │  Agents:                                         │
 │  ├── queen        (coordinator)                  │
-│  ├── ant-operator (developer)                    │
-│  └── ant-review   (reviewer)                     │
+│  ├── op-dev       (developer)                    │
+│  └── op-review    (reviewer)                     │
 │                                                  │
 │  ┌─────────────────────────────────────────┐    │
 │  │  Orchestration Layer                    │    │
@@ -250,7 +250,7 @@ Key features:
 
 #### 1. File System Access
 
-**Problem:** ACP is designed for remote agents. Ant Army needs deep local file system access.
+**Problem:** ACP is designed for remote agents. B'hive needs deep local file system access.
 
 The ACP spec doesn't define how agents access files - that's implementation-specific. Options:
 
@@ -290,7 +290,7 @@ ACP would require building:
 
 #### 3. VCS Operations
 
-**Problem:** Ant Army needs to create isolated workspaces and coordinate VCS operations.
+**Problem:** B'hive needs to create isolated workspaces and coordinate VCS operations.
 
 ACP agents would need to:
 
@@ -312,7 +312,7 @@ ACP supports SSE streaming, which could show:
 - Token-by-token generation
 - Run status changes
 
-But for Ant Army's multi-ant visualization:
+But for B'hive's multi-operator visualization:
 
 - Need custom streaming payload for N concurrent ants
 - ACP's `custom_streaming_update` could work
@@ -326,7 +326,7 @@ ACP is designed for the "Internet of Agents" vision:
 - Cross-framework interoperability
 - Federated agent networks
 
-Ant Army's needs are different:
+B'hive's needs are different:
 
 - One coordinated system (not federated)
 - Deep IDE integration (not cross-agent calls)
@@ -355,14 +355,14 @@ Ant Army's needs are different:
 
 ### Verdict: ACP Server Approach
 
-**Maybe, but poor fit for Ant Army's goals.**
+**Maybe, but poor fit for B'hive's goals.**
 
-ACP solves a different problem (remote agent orchestration) than Ant Army's problem (parallel local development).
+ACP solves a different problem (remote agent orchestration) than B'hive's problem (parallel local development).
 
 **If ACP were chosen, the implementation would likely be:**
 
 ```
-Local: ACP Server + All Ant Army Logic + File Access
+Local: ACP Server + All B'hive Logic + File Access
        │
        └── Essentially OpenCode with an HTTP API layer
 
@@ -384,12 +384,12 @@ Either way, we'd need to build:
 
 **When ACP might make sense:**
 
-- If Ant Army pivots to a **cloud service** model (user code runs on our servers)
+- If B'hive pivots to a **cloud service** model (user code runs on our servers)
 - If IDE vendors adopt ACP and provide client libraries
-- If the goal is **agent-to-agent orchestration** (one Ant Army calls another)
+- If the goal is **agent-to-agent orchestration** (one B'hive calls another)
 - For **enterprise deployment** where central servers manage multiple developers
 
-**For the current vision** (local TUI, single user, fast iteration): The fork approach is superior.
+**For the current vision** (local TUI, single user, fast iteration): The fork approach is superior for B'hive.
 
 ---
 
@@ -450,9 +450,9 @@ Then reconsider architectural weight toward ACP.
 
 ## Appendix: ACP Spec Analysis
 
-### Relevant ACP Features for Ant Army
+### Relevant ACP Features for B'hive
 
-| ACP Feature      | Ant Army Use Case            | Fit           |
+| ACP Feature      | B'hive Use Case              | Fit           |
 | ---------------- | ---------------------------- | ------------- |
 | Thread state     | Track decomposed task state  | ✅ Good       |
 | Checkpoints      | Enable time-travel debugging | ✅ Good       |
@@ -464,22 +464,22 @@ Then reconsider architectural weight toward ACP.
 
 ### ACP vs MCP
 
-| Protocol                         | Purpose                      | Ant Army Fit               |
+| Protocol                         | Purpose                      | B'hive Fit                 |
 | -------------------------------- | ---------------------------- | -------------------------- |
 | **MCP** (Model Context Protocol) | Expose tools/resources to AI | OpenCode already uses this |
 | **ACP** (Agent Connect Protocol) | Remote agent invocation      | Not our core use case      |
 
-MCP is for **tool extension** - Ant Army might expose LEGOMem as MCP server.
+MCP is for **tool extension** - B'hive might expose LEGOMem as MCP server.
 
-ACP is for **agent orchestration** - Ant Army's orchestration is internal.
+ACP is for **agent orchestration** - B'hive's orchestration is internal.
 
 ---
 
 ## References
 
-- [OpenCode Agent System](file:///Volumes/Git/git-repos/opencode/ant-army/packages/opencode/src/agent/agent.ts)
-- [spawn_ant Tool Implementation](file:///Volumes/Git/git-repos/opencode/ant-army/packages/opencode/src/tool/spawn-ant.ts)
+- [OpenCode Agent System](file:///Volumes/Git/git-repos/opencode/bhive/packages/opencode/src/agent/agent.ts)
+- [spawn_operator Tool Implementation](file:///Volumes/Git/git-repos/opencode/bhive/packages/opencode/src/tool/spawn-operator.ts)
 - [ACP GitHub Repository](https://github.com/agntcy/acp-spec)
 - [ACP OpenAPI Spec](https://spec.acp.agntcy.org/)
-- [OpenCode Integration Analysis](file:///Volumes/Git/git-repos/opencode/ant-army/docs/ant-army/research/opencode-integration-analysis.md)
-- [Fork Integration Strategy](file:///Volumes/Git/git-repos/opencode/ant-army/docs/ant-army/research/opencode-fork-integration-strategy.md)
+- [OpenCode Integration Analysis](file:///Volumes/Git/git-repos/opencode/bhive/docs/bhive/research/opencode-integration-analysis.md)
+- [Fork Integration Strategy](file:///Volumes/Git/git-repos/opencode/bhive/docs/bhive/research/opencode-fork-integration-strategy.md)

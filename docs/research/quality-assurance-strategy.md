@@ -7,7 +7,7 @@
 
 ## Executive Summary
 
-**Key Innovation:** Instead of relying on marker techniques or single-agent self-correction, Ant Army uses **task decomposition for quality** - separate review agents with clean contexts, enabling cross-provider validation and layered verification tiers.
+**Key Innovation:** Instead of relying on marker techniques or single-agent self-correction, B'hive uses **task decomposition for quality** - separate review agents with clean contexts, enabling cross-provider validation and layered verification tiers.
 
 **Marketing Hook:**
 
@@ -492,7 +492,7 @@ When stakes are high, the cost is negligible.
 
 **Tagline:**
 
-> "Ant Army doesn't just write code - it reviews its own work with independent AI agents, even using different AI providers to catch what others miss."
+> "B'hive doesn't just write code - it reviews its own work with independent AI agents, even using different AI providers to catch what others miss."
 
 **Value Propositions:**
 
@@ -506,7 +506,7 @@ When stakes are high, the cost is negligible.
 
 3. **Layered Quality**
 
-   > "From quick sanity checks to comprehensive multi-provider audits, Ant Army adjusts quality verification to match code criticality."
+   > "From quick sanity checks to comprehensive multi-provider audits, B'hive adjusts quality verification to match code criticality."
 
 4. **Cost-Optimized Quality**
    > "Smart routing means generating with cheaper models and reviewing with smarter ones - better quality at lower cost than single-model approaches."
@@ -520,7 +520,7 @@ Copilot:
 ├─ Generates code
 └─ That's it (no built-in review)
 
-Ant Army:
+B'hive:
 ├─ Generates code (specialized agent)
 ├─ Reviews code (separate agent, clean context)
 ├─ Can cross-validate (different provider)
@@ -535,7 +535,7 @@ Traditional assistants:
 ├─ Self-review in same session (marker at best)
 └─ One provider perspective
 
-Ant Army:
+B'hive:
 ├─ Decomposed tasks, clean contexts
 ├─ Separate review agents
 ├─ Multi-provider validation option
@@ -550,7 +550,7 @@ Ant Army:
 
 **Cost Savings:**
 
-> "Ant Army uses GPT-4o-mini to generate most code, but brings in GPT-4o for reviews. We're getting better quality at 68% lower cost than using GPT-4o for everything."
+> "B'hive uses GPT-4o-mini to generate most code, but brings in GPT-4o for reviews. We're getting better quality at 68% lower cost than using GPT-4o for everything."
 
 **Catching Subtle Bugs:**
 

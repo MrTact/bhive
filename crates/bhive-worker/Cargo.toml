@@ -1,0 +1,15 @@
+[package]
+name = "bhive-worker"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[dependencies]
+bhive-core = { path = "../bhive-core" }
+
+tokio = { workspace = true }
+anyhow = { workspace = true }
+tracing = { workspace = true }
+
+# TODO: Add rig-core and genai when implementing

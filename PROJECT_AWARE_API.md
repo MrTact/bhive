@@ -6,10 +6,10 @@ The API server now requires a project ID to know which project database to conne
 ## Architecture
 
 ### Flow:
-1. User runs `ant-army init` in project directory
-2. Creates project database: `ant_army_<project_id>`
-3. Registers in `~/.config/ant-army/projects.toml`
-4. User runs `ant-army task create "foo"`
+1. User runs `bhive init` in project directory
+2. Creates project database: `bhive_<project_id>`
+3. Registers in `~/.config/bhive/projects.toml`
+4. User runs `bhive task create "foo"`
 5. CLI looks up project from current directory
 6. CLI sends `X-Project-ID` header with API request
 7. API server connects to correct project database
@@ -17,7 +17,7 @@ The API server now requires a project ID to know which project database to conne
 
 ## Changes Made
 
-### CLI (`ant-army-cli`)
+### CLI (`bhive-cli`)
 
 **New module: `commands/project.rs`**
 - `get_current_project()` - Detects and validates project initialization
@@ -35,7 +35,7 @@ The API server now requires a project ID to know which project database to conne
 - Add project ID to API client
 - Update last-seen timestamp on each use
 
-### API Server (`ant-army-api`)
+### API Server (`bhive-api`)
 
 **New module: `extractors.rs`**
 - `ProjectId` extractor validates `X-Project-ID` header
@@ -45,7 +45,7 @@ The API server now requires a project ID to know which project database to conne
 **Updated: `state.rs`**
 - Connection pool cache per project
 - `get_coordinator(project_id)` - Gets or creates coordinator for project
-- Constructs project-specific database URLs: `ant_army_{project_id}`
+- Constructs project-specific database URLs: `bhive_{project_id}`
 - Maintains base connection for metadata operations
 
 **Updated: `handlers.rs`**
@@ -63,13 +63,13 @@ Error: Project not initialized in this directory.
 
 Current directory: /path/to/project
 
-To initialize ant-army for this project, run:
-  ant-army init
+To initialize bhive for this project, run:
+  bhive init
 ```
 
 **Registry not found:**
 ```
-Error: Failed to load project registry. Have you run 'ant-army init' yet?
+Error: Failed to load project registry. Have you run 'bhive init' yet?
 ```
 
 ### API Errors
@@ -78,7 +78,7 @@ Error: Failed to load project registry. Have you run 'ant-army init' yet?
 ```
 Missing X-Project-ID header.
 
-This endpoint requires a project ID. Make sure you've run 'ant-army init'
+This endpoint requires a project ID. Make sure you've run 'bhive init'
 in your project directory.
 
 The CLI should automatically include this header. If you're calling the API
@@ -88,7 +88,7 @@ directly, add the header:
 
 **Database not found (500):**
 ```
-Failed to connect to project database 'ant_army_myproject_a1b2'.
+Failed to connect to project database 'bhive_myproject_a1b2'.
 Has this project been initialized?
 ```
 
@@ -97,12 +97,12 @@ Has this project been initialized?
 ### 1. Initialize a project
 ```bash
 cd /path/to/your/project
-ant-army init
+bhive init
 ```
 
 ### 2. Create a task
 ```bash
-ant-army task create "Write hello world function"
+bhive task create "Write hello world function"
 ```
 
 ### 3. Check API logs
@@ -121,10 +121,10 @@ Task created: <uuid>
 **Without initialization:**
 ```bash
 cd /tmp/uninitialized-project
-ant-army task create "test"
+bhive task create "test"
 ```
 
-Should get clear error about needing to run `ant-army init`.
+Should get clear error about needing to run `bhive init`.
 
 **Direct API call without header:**
 ```bash
