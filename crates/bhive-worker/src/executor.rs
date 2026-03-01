@@ -2,6 +2,7 @@
 
 use crate::WorkerContext;
 use bhive_core::coordination::CompleteTaskRequest;
+use bhive_core::workspace::WorkspaceManager;
 
 /// Result of worker execution
 #[derive(Debug)]
@@ -32,6 +33,16 @@ pub async fn run_worker(ctx: WorkerContext) -> WorkerResult {
     let _guard = span.enter();
 
     tracing::info!("Worker starting task");
+
+    // Prepare workspace for this task (create/sync to task bookmark)
+    let workspace_manager = WorkspaceManager::new();
+    if let Err(e) = workspace_manager
+        .prepare_for_task(&ctx.project_root, ctx.operator_id, ctx.task_id)
+        .await
+    {
+        tracing::error!("Failed to prepare workspace: {}", e);
+        return complete_with_error(&ctx, format!("Failed to prepare workspace: {}", e)).await;
+    }
 
     // Mark task as active
     if let Err(e) = ctx.coordinator.start_task(ctx.task_id).await {

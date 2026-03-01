@@ -16,6 +16,7 @@ pub mod provider;
 pub mod task;
 pub mod types;
 pub mod worker;
+pub mod workspace;
 
 pub use error::{Error, Result};
 pub use types::{TaskId, WorkerId};

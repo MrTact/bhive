@@ -9,9 +9,12 @@ use bhive_core::coordination::{
 };
 use bhive_core::naming::WorkerNameGenerator;
 use bhive_core::project::ProjectRegistry;
+use bhive_core::workspace::WorkspaceManager;
 use bhive_core::Result;
+use bhive_worker::WorkerContext;
 use std::sync::Arc;
 use tokio::sync::RwLock;
+use tokio_util::sync::CancellationToken;
 use uuid::Uuid;
 
 /// Hard cap on maximum operators to prevent runaway resource consumption.
@@ -43,6 +46,9 @@ pub struct Queen {
 
     /// Project registry for looking up project paths
     project_registry: Arc<RwLock<ProjectRegistry>>,
+
+    /// Workspace manager for jj workspace operations
+    workspace_manager: WorkspaceManager,
 }
 
 /// Lifetime statistics
@@ -72,6 +78,7 @@ impl Queen {
             stats: Arc::new(RwLock::new(QueenStats::default())),
             name_generator: WorkerNameGenerator::with_defaults(),
             project_registry: Arc::new(RwLock::new(project_registry)),
+            workspace_manager: WorkspaceManager::new(),
         })
     }
 
@@ -150,6 +157,33 @@ impl Queen {
             return Ok(());
         }
 
+        // Get workspace path from pool
+        let workspace_path = {
+            let pool = self.pool.read().await;
+            pool.get_idle(operator.id)
+                .map(|info| info.workspace_path.clone())
+                .ok_or_else(|| {
+                    bhive_core::Error::Other(anyhow::anyhow!(
+                        "Operator {} not found in pool",
+                        operator.id
+                    ))
+                })?
+        };
+
+        // Get project_root from registry
+        let project_root = {
+            let registry = self.project_registry.read().await;
+            registry
+                .get_by_id(project_id)
+                .map(|p| p.path.clone())
+                .ok_or_else(|| {
+                    bhive_core::Error::Other(anyhow::anyhow!(
+                        "Project {} not found in registry",
+                        project_id
+                    ))
+                })?
+        };
+
         // Activate operator in our local pool
         {
             let mut pool = self.pool.write().await;
@@ -159,14 +193,39 @@ impl Queen {
         // Increment stats
         self.stats.write().await.total_assigned += 1;
 
+        // Create worker context
+        let cancel_token = CancellationToken::new();
+        let ctx = WorkerContext::new(
+            task_id,
+            operator.id,
+            project_id.clone(),
+            project_root,
+            self.coordinator.clone(),
+            workspace_path,
+        )
+        .with_cancel_token(cancel_token);
+
+        // Spawn worker Tokio task
+        tokio::spawn(async move {
+            let result = bhive_worker::run_worker(ctx).await;
+            match result {
+                bhive_worker::WorkerResult::Success(_) => {
+                    tracing::info!("Worker completed task {} successfully", task_id);
+                }
+                bhive_worker::WorkerResult::Failed(err) => {
+                    tracing::warn!("Worker failed task {}: {}", task_id, err);
+                }
+                bhive_worker::WorkerResult::Cancelled => {
+                    tracing::info!("Worker cancelled task {}", task_id);
+                }
+            }
+        });
+
         tracing::info!(
-            "✓ Task {} assigned to operator {} successfully",
+            "✓ Task {} assigned to operator {} and worker spawned",
             task_id,
             operator.id
         );
-
-        // TODO: In next task (#11/#12), spawn worker Tokio task here
-        // For now, the task is claimed and ready for a worker to execute
 
         Ok(())
     }
@@ -275,20 +334,12 @@ impl Queen {
             .acquire_operator(project_id, operator_type)
             .await?;
 
-        // Generate workspace path: {project_root}/workspaces/{operator_id}/
-        let workspace_path = project_root
-            .join("workspaces")
-            .join(operator.id.to_string());
-
-        // Create workspace directory
-        if !workspace_path.exists() {
-            std::fs::create_dir_all(&workspace_path).map_err(|e| {
-                bhive_core::Error::Config(format!(
-                    "Failed to create operator workspace {:?}: {}",
-                    workspace_path, e
-                ))
-            })?;
-        }
+        // Create jj workspace using workspace manager
+        // This creates a proper jj workspace pointing to the central repo
+        let workspace_path = self
+            .workspace_manager
+            .ensure_exists(&project_root, operator.id)
+            .await?;
 
         // Add to our local pool as idle (will be activated when task assigned)
         {
@@ -320,24 +371,6 @@ impl Queen {
             tracing::warn!("Attempted to release non-active operator {}", operator_id);
             Ok(())
         }
-    }
-
-    /// Reap idle operators that have exceeded idle timeout
-    async fn reap_idle_operators(&self) -> Result<()> {
-        let pool = self.pool.read().await;
-        let stale_operators = pool.get_stale_idle_operators(self.config.idle_timeout);
-        drop(pool); // Release read lock
-
-        for operator_id in stale_operators {
-            tracing::info!("Reaping idle operator {}", operator_id);
-            let mut pool = self.pool.write().await;
-            if let Some(info) = pool.remove(operator_id) {
-                // TODO: Cleanup workspace
-                tracing::debug!("Reaped operator {} from {:?}", operator_id, info.workspace_path);
-            }
-        }
-
-        Ok(())
     }
 
     /// Handle a coordination event
@@ -459,6 +492,8 @@ impl QueenLifecycle for Queen {
         let running = self.running.clone();
         let pool = self.pool.clone();
         let config = self.config.clone();
+        let workspace_manager = self.workspace_manager.clone();
+        let project_registry = self.project_registry.clone();
         tokio::spawn(async move {
             tracing::info!("Reaper loop started (interval: {:?})", config.reap_interval);
             let mut interval = tokio::time::interval(config.reap_interval);
@@ -467,23 +502,48 @@ impl QueenLifecycle for Queen {
                 interval.tick().await;
 
                 // Find stale operators
-                let stale = {
+                let stale: Vec<_> = {
                     let pool_read = pool.read().await;
-                    pool_read.get_stale_idle_operators(config.idle_timeout)
+                    pool_read
+                        .get_stale_idle_operators(config.idle_timeout)
+                        .into_iter()
+                        .filter_map(|id| {
+                            pool_read
+                                .get_idle(id)
+                                .map(|info| (id, info.operator.project_id.clone()))
+                        })
+                        .collect()
                 };
 
                 // Reap them
                 if !stale.is_empty() {
                     tracing::info!("Reaping {} stale operators", stale.len());
-                    let mut pool_write = pool.write().await;
-                    for operator_id in stale {
+                    for (operator_id, project_id) in stale {
+                        // Get project root for workspace cleanup
+                        let project_root = {
+                            let registry = project_registry.read().await;
+                            registry.get_by_id(&project_id).map(|p| p.path.clone())
+                        };
+
+                        // Clean up workspace if we can find the project
+                        if let Some(root) = project_root {
+                            if let Err(e) = workspace_manager.cleanup(&root, operator_id).await {
+                                tracing::warn!(
+                                    "Failed to cleanup workspace for operator {}: {}",
+                                    operator_id,
+                                    e
+                                );
+                            }
+                        }
+
+                        // Remove from pool
+                        let mut pool_write = pool.write().await;
                         if let Some(info) = pool_write.remove(operator_id) {
                             tracing::debug!(
                                 "Reaped operator {} (idle for {:?})",
                                 operator_id,
                                 info.last_active.elapsed()
                             );
-                            // TODO: Cleanup workspace
                         }
                     }
                 }
@@ -551,6 +611,7 @@ impl Queen {
             stats: self.stats.clone(),
             name_generator: WorkerNameGenerator::with_defaults(),
             project_registry: self.project_registry.clone(),
+            workspace_manager: self.workspace_manager.clone(),
         }
     }
 }

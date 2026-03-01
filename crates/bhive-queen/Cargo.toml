@@ -7,8 +7,10 @@ authors.workspace = true
 
 [dependencies]
 bhive-core = { path = "../bhive-core" }
+bhive-worker = { path = "../bhive-worker" }
 
 tokio = { workspace = true }
+tokio-util = { version = "0.7", features = ["rt"] }
 anyhow = { workspace = true }
 tracing = { workspace = true }
 serde = { workspace = true }

@@ -184,10 +184,10 @@ struct BeePool {
 
 ### Phase 3: Workers & Communication
 - [x] **#11** - Design Queen-to-Worker communication protocol ✅ (WorkerContext with project_id, project_root, coordinator; run_worker function)
-- [ ] **#12** - Implement worker Tokio task spawning and management
+- [x] **#12** - Implement worker Tokio task spawning and management ✅ (assign_task spawns tokio::spawn with WorkerContext)
 
 ### Phase 4: Workspace Management
-- [ ] **#17** - Implement persistent workspace system
+- [x] **#17** - Implement persistent workspace system ✅ (workspace.rs - WorkspaceManager with ensure_exists, prepare_for_task, cleanup)
 
 ### Phase 5: Integration & Production
 - [ ] **#13** - Integrate Queen into API server
