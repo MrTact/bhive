@@ -190,7 +190,7 @@ struct BeePool {
 - [x] **#17** - Implement persistent workspace system ✅ (workspace.rs - WorkspaceManager with ensure_exists, prepare_for_task, cleanup)
 
 ### Phase 5: Integration & Production
-- [ ] **#13** - Integrate Queen into API server
+- [x] **#13** - Integrate Queen into API server ✅ (AppState manages Queens per-project, graceful shutdown)
 - [ ] **#14** - Implement error handling and recovery
 - [ ] **#15** - Add Queen tests and observability
 

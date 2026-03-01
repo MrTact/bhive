@@ -4,14 +4,15 @@ use crate::config::QueenConfig;
 use crate::pool::OperatorPool;
 use crate::{QueenLifecycle, QueenStatus};
 use bhive_core::coordination::{
-    channels, Operator, OperatorType, CoordinationEvent, Coordinator, NotificationListener,
-    TaskStatus,
+    channels, CoordinationEvent, Coordinator, CoordinatorProvider, NotificationListener,
+    Operator, OperatorType, TaskStatus,
 };
 use bhive_core::naming::WorkerNameGenerator;
 use bhive_core::project::ProjectRegistry;
 use bhive_core::workspace::WorkspaceManager;
 use bhive_core::Result;
 use bhive_worker::WorkerContext;
+use sqlx::PgPool;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 use tokio_util::sync::CancellationToken;
@@ -21,15 +22,18 @@ use uuid::Uuid;
 /// This limit cannot be exceeded regardless of configuration.
 const HARD_MAX_OPERATORS: usize = 64;
 
-/// The Queen agent - central orchestrator for task assignment
+/// The Queen agent - central orchestrator for task assignment across all projects
 pub struct Queen {
     /// Configuration
     config: QueenConfig,
 
-    /// Coordinator for database operations
-    coordinator: Arc<Coordinator>,
+    /// Provider for getting coordinators for different projects
+    coordinator_provider: Arc<dyn CoordinatorProvider>,
 
-    /// Operator pool state
+    /// Main database pool for LISTEN/NOTIFY (connects to main bhive db)
+    main_pool: PgPool,
+
+    /// Operator pool state (spans all projects)
     pool: Arc<RwLock<OperatorPool>>,
 
     /// Notification listener for LISTEN/NOTIFY
@@ -61,17 +65,25 @@ struct QueenStats {
 }
 
 impl Queen {
-    /// Create a new Queen with the given coordinator and config
-    pub async fn new(coordinator: Arc<Coordinator>, config: QueenConfig) -> Result<Self> {
+    /// Create a new Queen with a coordinator provider and config
+    ///
+    /// The main_pool is used for LISTEN/NOTIFY on the main bhive database.
+    /// The coordinator_provider is used to get project-specific coordinators.
+    pub async fn new(
+        main_pool: PgPool,
+        coordinator_provider: Arc<dyn CoordinatorProvider>,
+        config: QueenConfig,
+    ) -> Result<Self> {
         // Load project registry
         let project_registry = ProjectRegistry::load()?;
 
-        // Create notification listener
-        let listener = NotificationListener::new(coordinator.pool()).await?;
+        // Create notification listener on main pool
+        let listener = NotificationListener::new(&main_pool).await?;
 
         Ok(Self {
             config,
-            coordinator,
+            coordinator_provider,
+            main_pool,
             pool: Arc::new(RwLock::new(OperatorPool::new())),
             listener: Some(listener),
             running: Arc::new(RwLock::new(false)),
@@ -82,14 +94,14 @@ impl Queen {
         })
     }
 
-    /// Get reference to the coordinator
-    pub fn coordinator(&self) -> &Coordinator {
-        &self.coordinator
-    }
-
     /// Get reference to the config
     pub fn config(&self) -> &QueenConfig {
         &self.config
+    }
+
+    /// Get a coordinator for a specific project
+    async fn get_coordinator(&self, project_id: &str) -> Result<Arc<Coordinator>> {
+        self.coordinator_provider.get_coordinator(project_id).await
     }
 
     /// Assign a task to an operator
@@ -100,9 +112,12 @@ impl Queen {
     /// 3. If none available and under limit, spawn a new one
     /// 4. If at limit, the task stays pending (will be picked up when operator frees)
     /// 5. Claim the task for the selected operator
-    pub async fn assign_task(&self, task_id: Uuid) -> Result<()> {
+    pub async fn assign_task(&self, task_id: Uuid, project_id: &str) -> Result<()> {
+        // Get coordinator for this project
+        let coordinator = self.get_coordinator(project_id).await?;
+
         // Get task details
-        let task = self.coordinator.get_task(task_id).await?;
+        let task = coordinator.get_task(task_id).await?;
 
         // Skip if task is not pending (may have been claimed by another process)
         if task.status != TaskStatus::Pending {
@@ -116,7 +131,6 @@ impl Queen {
 
         // Determine operator type needed (for now, default to Operator)
         let operator_type = self.determine_operator_type(&task);
-        let project_id = &task.project_id;
 
         // Try to get an operator for this project
         let operator = match self
@@ -145,7 +159,7 @@ impl Queen {
         );
 
         // Claim the task in the database
-        let claimed = self.coordinator.claim_task(task_id, operator.id).await?;
+        let claimed = coordinator.claim_task(task_id, operator.id).await?;
         if !claimed {
             tracing::warn!(
                 "Failed to claim task {} for operator {} (may have been claimed by another)",
@@ -198,9 +212,9 @@ impl Queen {
         let ctx = WorkerContext::new(
             task_id,
             operator.id,
-            project_id.clone(),
+            project_id.to_string(),
             project_root,
-            self.coordinator.clone(),
+            coordinator.clone(),
             workspace_path,
         )
         .with_cancel_token(cancel_token);
@@ -260,8 +274,11 @@ impl Queen {
                 let operator_id = info.operator.id;
                 drop(pool);
 
+                // Get coordinator for this project
+                let coordinator = self.get_coordinator(project_id).await?;
+
                 // Get operator from database
-                let operator = self.coordinator.get_operator(operator_id).await?;
+                let operator = coordinator.get_operator(operator_id).await?;
                 tracing::debug!(
                     "Reusing idle operator {} ({:?}) for project {}",
                     operator_id,
@@ -328,9 +345,11 @@ impl Queen {
                 })?
         };
 
+        // Get coordinator for this project
+        let coordinator = self.get_coordinator(project_id).await?;
+
         // Acquire operator from database (creates new one if needed)
-        let operator = self
-            .coordinator
+        let operator = coordinator
             .acquire_operator(project_id, operator_type)
             .await?;
 
@@ -376,16 +395,28 @@ impl Queen {
     /// Handle a coordination event
     async fn handle_event(&self, event: CoordinationEvent) -> Result<()> {
         match event {
-            CoordinationEvent::TaskCreated { task_id, description } => {
-                tracing::info!("TaskCreated: {} - {}", task_id, description);
-                if let Err(e) = self.assign_task(task_id).await {
+            CoordinationEvent::TaskCreated {
+                task_id,
+                project_id,
+                description,
+            } => {
+                tracing::info!(
+                    "TaskCreated: {} in project {} - {}",
+                    task_id,
+                    project_id,
+                    description
+                );
+                if let Err(e) = self.assign_task(task_id, &project_id).await {
                     tracing::error!("Failed to assign task {}: {}", task_id, e);
                     // TODO: Mark task as failed or retry
                 }
-                self.stats.write().await.total_assigned += 1;
             }
             CoordinationEvent::TaskCompleted { task_id, result } => {
-                tracing::info!("TaskCompleted: {} (has_result: {})", task_id, result.is_some());
+                tracing::info!(
+                    "TaskCompleted: {} (has_result: {})",
+                    task_id,
+                    result.is_some()
+                );
 
                 // Find operator and release to pool
                 let pool = self.pool.read().await;
@@ -417,11 +448,27 @@ impl Queen {
 
                 self.stats.write().await.total_failed += 1;
             }
-            CoordinationEvent::OperatorAcquired { operator_id, operator_type, reused } => {
-                tracing::debug!("OperatorAcquired: {} (type: {}, reused: {})", operator_id, operator_type, reused);
+            CoordinationEvent::OperatorAcquired {
+                operator_id,
+                operator_type,
+                reused,
+            } => {
+                tracing::debug!(
+                    "OperatorAcquired: {} (type: {}, reused: {})",
+                    operator_id,
+                    operator_type,
+                    reused
+                );
             }
-            CoordinationEvent::OperatorReleased { operator_id, success } => {
-                tracing::debug!("OperatorReleased: {} (success: {})", operator_id, success);
+            CoordinationEvent::OperatorReleased {
+                operator_id,
+                success,
+            } => {
+                tracing::debug!(
+                    "OperatorReleased: {} (success: {})",
+                    operator_id,
+                    success
+                );
             }
             _ => {
                 tracing::trace!("Ignoring event: {:?}", event);
@@ -434,7 +481,7 @@ impl Queen {
 #[async_trait::async_trait]
 impl QueenLifecycle for Queen {
     async fn start(&mut self) -> Result<()> {
-        tracing::info!("🐝 Starting Queen agent");
+        tracing::info!("🐝 Starting Queen agent (singleton orchestrator)");
 
         *self.running.write().await = true;
 
@@ -604,7 +651,8 @@ impl Queen {
     fn clone_for_event_loop(&self) -> Self {
         Self {
             config: self.config.clone(),
-            coordinator: self.coordinator.clone(),
+            coordinator_provider: self.coordinator_provider.clone(),
+            main_pool: self.main_pool.clone(),
             pool: self.pool.clone(),
             listener: None,
             running: self.running.clone(),

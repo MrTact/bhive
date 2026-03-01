@@ -11,6 +11,7 @@ path = "src/main.rs"
 
 [dependencies]
 bhive-core = { path = "../bhive-core" }
+bhive-queen = { path = "../bhive-queen" }
 
 tokio = { workspace = true }
 axum = { workspace = true }
@@ -26,3 +27,4 @@ tracing-subscriber = { workspace = true }
 uuid = { workspace = true }
 chrono = { workspace = true }
 futures = { workspace = true }
+async-trait = "0.1"

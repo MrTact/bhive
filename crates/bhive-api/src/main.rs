@@ -22,7 +22,7 @@ async fn main() -> anyhow::Result<()> {
     tracing_subscriber::registry()
         .with(
             tracing_subscriber::EnvFilter::try_from_default_env()
-                .unwrap_or_else(|_| "bhive_api=debug,tower_http=debug".into()),
+                .unwrap_or_else(|_| "bhive_api=debug,bhive_queen=debug,tower_http=debug".into()),
         )
         .with(tracing_subscriber::fmt::layer())
         .init();
@@ -31,6 +31,10 @@ async fn main() -> anyhow::Result<()> {
 
     // Initialize application state
     let state = AppState::new().await?;
+    let shutdown_state = state.clone();
+
+    // Start the singleton Queen
+    state.start_queen().await?;
 
     // Build router
     let app = Router::new()
@@ -44,12 +48,29 @@ async fn main() -> anyhow::Result<()> {
         .layer(TraceLayer::new_for_http())
         .with_state(state);
 
-    // Start server
+    // Start server with graceful shutdown
     let addr = SocketAddr::from(([0, 0, 0, 0], 3030));
     tracing::info!("Listening on {}", addr);
 
     let listener = tokio::net::TcpListener::bind(addr).await?;
-    axum::serve(listener, app).await?;
 
+    // Handle shutdown signal
+    let shutdown_signal = async {
+        tokio::signal::ctrl_c()
+            .await
+            .expect("Failed to install Ctrl+C handler");
+        tracing::info!("Received shutdown signal");
+    };
+
+    // Run server with graceful shutdown
+    axum::serve(listener, app)
+        .with_graceful_shutdown(shutdown_signal)
+        .await?;
+
+    // Shutdown the Queen
+    tracing::info!("Shutting down...");
+    shutdown_state.shutdown().await?;
+
+    tracing::info!("Server stopped");
     Ok(())
 }

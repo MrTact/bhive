@@ -23,6 +23,7 @@ pub enum CoordinationEvent {
     /// Task was created
     TaskCreated {
         task_id: Uuid,
+        project_id: String,
         description: String,
     },
     /// Task was claimed by an operator
@@ -132,6 +133,7 @@ mod tests {
     fn test_event_serialization() {
         let event = CoordinationEvent::TaskCreated {
             task_id: Uuid::new_v4(),
+            project_id: "test_project".to_string(),
             description: "Test task".to_string(),
         };
 
@@ -139,7 +141,12 @@ mod tests {
         let parsed: CoordinationEvent = serde_json::from_str(&json).unwrap();
 
         match parsed {
-            CoordinationEvent::TaskCreated { description, .. } => {
+            CoordinationEvent::TaskCreated {
+                project_id,
+                description,
+                ..
+            } => {
+                assert_eq!(project_id, "test_project");
                 assert_eq!(description, "Test task");
             }
             _ => panic!("Wrong event type"),

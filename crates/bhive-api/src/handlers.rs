@@ -1,6 +1,7 @@
 //! API request handlers
 
 use bhive_core::{
+    coordination::CoordinatorProvider,
     task::{CreateTaskRequest, CreateTaskResponse, Task},
     types::{Status, TaskId, WorkerId},
     worker::Worker,
@@ -53,12 +54,13 @@ pub async fn create_task(
     };
 
     // Create task in coordination layer
+    // This triggers a NOTIFY that the Queen will receive
     let task = coordinator.create_task(coord_request).await.map_err(|e| {
         tracing::error!("Failed to create task: {}", e);
         StatusCode::INTERNAL_SERVER_ERROR
     })?;
 
-    tracing::info!("Task created: {}", task.id);
+    tracing::info!("Task created: {} (Queen will assign)", task.id);
 
     let response = CreateTaskResponse {
         task_id: TaskId::from(task.id),
@@ -107,14 +109,21 @@ pub async fn get_worker(
     Err(StatusCode::NOT_IMPLEMENTED)
 }
 
-/// Get queen status
-pub async fn queen_status(
-    State(_state): State<AppState>,
-) -> impl IntoResponse {
-    // TODO: Implement actual queen status
-    Json(serde_json::json!({
-        "status": "idle",
-        "active_tasks": 0,
-        "total_workers": 0,
-    }))
+/// Get queen status (singleton orchestrator)
+pub async fn queen_status(State(state): State<AppState>) -> impl IntoResponse {
+    match state.queen_status().await {
+        Some(status) => Json(serde_json::json!({
+            "running": status.running,
+            "active_operators": status.active_operators,
+            "idle_operators": status.idle_operators,
+            "pending_tasks": status.pending_tasks,
+            "assigned_tasks": status.assigned_tasks,
+            "total_spawned": status.total_spawned,
+            "total_assigned": status.total_assigned,
+        })),
+        None => Json(serde_json::json!({
+            "running": false,
+            "message": "Queen not started"
+        })),
+    }
 }

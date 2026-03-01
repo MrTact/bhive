@@ -256,6 +256,7 @@ impl Coordinator {
             channels::TASK_EVENTS,
             &CoordinationEvent::TaskCreated {
                 task_id: task.id,
+                project_id: task.project_id.clone(),
                 description: task.description.clone(),
             },
         )
