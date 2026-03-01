@@ -61,18 +61,34 @@ nouns = [
 
 **Problem**: Creating/destroying workspaces on every task incurs overhead at scale (1000s of tasks).
 
-**Solution**: Persistent workspaces per bee
-- Each bee gets a workspace directory: `~/.config/bhive/workspaces/<bee_id>/`
+**Project Structure**:
+```
+project-root/               # Top-level project directory
+    repo/                   # Central jujutsu repository (source code)
+    workspaces/             # Operator workspaces (jj workspaces pointing to repo/)
+        {operator_id}/      # Each operator's jj workspace
+    # (project config, etc. - not revision-controlled)
+```
+
+**Solution**: Persistent workspaces per bee within each project
+- Each bee gets a workspace directory: `{project_root}/workspaces/{operator_id}/`
+- Workspace is a jujutsu workspace pointing to the central `repo/` directory
 - Workspace persists across tasks assigned to same bee
-- Reuse jujutsu working copies between tasks
 - Clean workspace only when:
   - Bee is reaped (idle timeout)
   - Explicit cleanup command
   - Workspace corruption detected
 
+**Key Points**:
+- Operators are project-scoped (cannot work on multiple projects)
+- Workspaces live within the project directory, not a global location
+- Central `repo/` contains the actual source code
+- Each operator workspace is a jj workspace (lightweight, shares history with repo/)
+
 **Benefits**:
 - Eliminate repeated git clone/checkout overhead
 - Keep jj working copy initialized
+- Operators isolated per project
 - Reuse dependencies/caches
 - Faster task execution
 
@@ -167,7 +183,7 @@ struct BeePool {
 - [x] **#10** - Implement bee pool management ✅ (pool.rs - BeePool with activate/deactivate/reap)
 
 ### Phase 3: Workers & Communication
-- [ ] **#11** - Design Queen-to-Worker communication protocol
+- [x] **#11** - Design Queen-to-Worker communication protocol ✅ (WorkerContext with project_id, project_root, coordinator; run_worker function)
 - [ ] **#12** - Implement worker Tokio task spawning and management
 
 ### Phase 4: Workspace Management

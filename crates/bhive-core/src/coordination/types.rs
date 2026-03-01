@@ -52,6 +52,8 @@ pub enum LogLevel {
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
 pub struct Operator {
     pub id: Uuid,
+    /// Project this operator belongs to (operators are project-scoped)
+    pub project_id: String,
     pub operator_type: OperatorType,
     pub status: OperatorStatus,
     pub workspace_path: Option<String>,
@@ -66,6 +68,8 @@ pub struct Operator {
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
 pub struct Task {
     pub id: Uuid,
+    /// Project this task belongs to
+    pub project_id: String,
     pub description: String,
     pub status: TaskStatus,
     pub operator_id: Option<Uuid>,
@@ -108,6 +112,8 @@ pub struct ReadyTask {
 /// Request to create a new task
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CreateTaskRequest {
+    /// Project this task belongs to
+    pub project_id: String,
     pub description: String,
     pub parent_id: Option<Uuid>,
     pub session_id: Option<String>,

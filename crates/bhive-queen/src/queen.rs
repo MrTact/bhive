@@ -8,8 +8,8 @@ use bhive_core::coordination::{
     TaskStatus,
 };
 use bhive_core::naming::WorkerNameGenerator;
+use bhive_core::project::ProjectRegistry;
 use bhive_core::Result;
-use std::path::PathBuf;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 use uuid::Uuid;
@@ -41,8 +41,8 @@ pub struct Queen {
     /// Name generator for operators
     name_generator: WorkerNameGenerator,
 
-    /// Base path for operator workspaces
-    workspace_base: PathBuf,
+    /// Project registry for looking up project paths
+    project_registry: Arc<RwLock<ProjectRegistry>>,
 }
 
 /// Lifetime statistics
@@ -57,27 +57,11 @@ struct QueenStats {
 impl Queen {
     /// Create a new Queen with the given coordinator and config
     pub async fn new(coordinator: Arc<Coordinator>, config: QueenConfig) -> Result<Self> {
-        Self::with_workspace_base(coordinator, config, default_workspace_base()).await
-    }
+        // Load project registry
+        let project_registry = ProjectRegistry::load()?;
 
-    /// Create a new Queen with a custom workspace base path
-    pub async fn with_workspace_base(
-        coordinator: Arc<Coordinator>,
-        config: QueenConfig,
-        workspace_base: PathBuf,
-    ) -> Result<Self> {
         // Create notification listener
         let listener = NotificationListener::new(coordinator.pool()).await?;
-
-        // Ensure workspace base directory exists
-        if !workspace_base.exists() {
-            std::fs::create_dir_all(&workspace_base).map_err(|e| {
-                bhive_core::Error::Config(format!(
-                    "Failed to create workspace directory {:?}: {}",
-                    workspace_base, e
-                ))
-            })?;
-        }
 
         Ok(Self {
             config,
@@ -87,7 +71,7 @@ impl Queen {
             running: Arc::new(RwLock::new(false)),
             stats: Arc::new(RwLock::new(QueenStats::default())),
             name_generator: WorkerNameGenerator::with_defaults(),
-            workspace_base,
+            project_registry: Arc::new(RwLock::new(project_registry)),
         })
     }
 
@@ -125,14 +109,19 @@ impl Queen {
 
         // Determine operator type needed (for now, default to Operator)
         let operator_type = self.determine_operator_type(&task);
+        let project_id = &task.project_id;
 
-        // Try to get an operator
-        let operator = match self.select_or_spawn_operator(operator_type).await {
+        // Try to get an operator for this project
+        let operator = match self
+            .select_or_spawn_operator(project_id, operator_type)
+            .await
+        {
             Ok(op) => op,
             Err(e) => {
                 tracing::warn!(
-                    "Cannot assign task {} - no operator available: {}",
+                    "Cannot assign task {} (project {}) - no operator available: {}",
                     task_id,
+                    project_id,
                     e
                 );
                 // Task stays pending, will be assigned when operator becomes available
@@ -141,10 +130,11 @@ impl Queen {
         };
 
         tracing::info!(
-            "Assigning task {} to operator {} ({:?})",
+            "Assigning task {} to operator {} ({:?}) for project {}",
             task_id,
             operator.id,
-            operator.operator_type
+            operator.operator_type,
+            project_id
         );
 
         // Claim the task in the database
@@ -198,24 +188,32 @@ impl Queen {
         }
     }
 
-    /// Try to select an idle operator or spawn a new one
-    async fn select_or_spawn_operator(&self, operator_type: OperatorType) -> Result<Operator> {
-        // First, check if we have an idle operator of the right type
+    /// Try to select an idle operator or spawn a new one for a specific project
+    async fn select_or_spawn_operator(
+        &self,
+        project_id: &str,
+        operator_type: OperatorType,
+    ) -> Result<Operator> {
+        // First, check if we have an idle operator of the right type for this project
         {
             let pool = self.pool.read().await;
-            if let Some(info) = pool.get_idle_operator(operator_type) {
+            if let Some(info) = pool.get_idle_operator(project_id, operator_type) {
                 let operator_id = info.operator.id;
                 drop(pool);
 
-                // Acquire from database (updates status to active)
-                // Note: acquire_operator creates new if none idle, but we already checked pool
+                // Get operator from database
                 let operator = self.coordinator.get_operator(operator_id).await?;
-                tracing::debug!("Reusing idle operator {} ({:?})", operator_id, operator_type);
+                tracing::debug!(
+                    "Reusing idle operator {} ({:?}) for project {}",
+                    operator_id,
+                    operator_type,
+                    project_id
+                );
                 return Ok(operator);
             }
         }
 
-        // No idle operator of right type, check if we can spawn a new one
+        // No idle operator of right type for this project, check if we can spawn a new one
         let current_count = {
             let pool = self.pool.read().await;
             pool.total_count()
@@ -239,17 +237,48 @@ impl Queen {
             )));
         }
 
-        // Spawn new operator via database
-        self.spawn_operator(operator_type).await
+        // Spawn new operator via database for this project
+        self.spawn_operator(project_id, operator_type).await
     }
 
-    /// Spawn a new operator
-    async fn spawn_operator(&self, operator_type: OperatorType) -> Result<Operator> {
-        // Acquire operator from database (creates new one if needed)
-        let operator = self.coordinator.acquire_operator(operator_type).await?;
+    /// Spawn a new operator for a specific project
+    ///
+    /// Workspace structure:
+    /// ```text
+    /// {project_root}/
+    ///     repo/               # Central jujutsu repository
+    ///     workspaces/         # Operator workspaces
+    ///         {operator_id}/  # This operator's jj workspace
+    /// ```
+    async fn spawn_operator(
+        &self,
+        project_id: &str,
+        operator_type: OperatorType,
+    ) -> Result<Operator> {
+        // Look up project to get project_root path
+        let project_root = {
+            let registry = self.project_registry.read().await;
+            registry
+                .get_by_id(project_id)
+                .map(|p| p.path.clone())
+                .ok_or_else(|| {
+                    bhive_core::Error::Other(anyhow::anyhow!(
+                        "Project {} not found in registry",
+                        project_id
+                    ))
+                })?
+        };
 
-        // Generate workspace path
-        let workspace_path = self.workspace_base.join(operator.id.to_string());
+        // Acquire operator from database (creates new one if needed)
+        let operator = self
+            .coordinator
+            .acquire_operator(project_id, operator_type)
+            .await?;
+
+        // Generate workspace path: {project_root}/workspaces/{operator_id}/
+        let workspace_path = project_root
+            .join("workspaces")
+            .join(operator.id.to_string());
 
         // Create workspace directory
         if !workspace_path.exists() {
@@ -271,9 +300,10 @@ impl Queen {
         self.stats.write().await.total_spawned += 1;
 
         tracing::info!(
-            "🐝 Spawned new operator {} ({:?}) with workspace {:?}",
+            "🐝 Spawned new operator {} ({:?}) for project {} with workspace {:?}",
             operator.id,
             operator_type,
+            project_id,
             workspace_path
         );
 
@@ -520,15 +550,7 @@ impl Queen {
             running: self.running.clone(),
             stats: self.stats.clone(),
             name_generator: WorkerNameGenerator::with_defaults(),
-            workspace_base: self.workspace_base.clone(),
+            project_registry: self.project_registry.clone(),
         }
     }
-}
-
-/// Get the default workspace base path
-fn default_workspace_base() -> PathBuf {
-    dirs::data_local_dir()
-        .unwrap_or_else(|| PathBuf::from("/tmp"))
-        .join("bhive")
-        .join("workspaces")
 }

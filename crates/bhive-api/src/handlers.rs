@@ -45,6 +45,7 @@ pub async fn create_task(
 
     // Convert API request to coordination request
     let coord_request = bhive_core::coordination::CreateTaskRequest {
+        project_id: project_id.clone(),
         description: request.description.clone(),
         parent_id: None,
         session_id: None,

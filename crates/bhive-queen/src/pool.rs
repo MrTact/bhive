@@ -98,16 +98,38 @@ impl OperatorPool {
         }
     }
 
-    /// Get an idle operator of a specific type
-    pub fn get_idle_operator(&self, operator_type: OperatorType) -> Option<&OperatorInfo> {
-        self.idle
-            .values()
-            .find(|info| info.operator.operator_type == operator_type)
+    /// Get an idle operator of a specific type for a specific project
+    pub fn get_idle_operator(
+        &self,
+        project_id: &str,
+        operator_type: OperatorType,
+    ) -> Option<&OperatorInfo> {
+        self.idle.values().find(|info| {
+            info.operator.project_id == project_id
+                && info.operator.operator_type == operator_type
+        })
     }
 
-    /// Get any idle operator (for reuse)
-    pub fn get_any_idle_operator(&self) -> Option<&OperatorInfo> {
-        self.idle.values().next()
+    /// Get any idle operator for a specific project (for reuse)
+    pub fn get_any_idle_operator(&self, project_id: &str) -> Option<&OperatorInfo> {
+        self.idle
+            .values()
+            .find(|info| info.operator.project_id == project_id)
+    }
+
+    /// Count operators for a specific project
+    pub fn count_for_project(&self, project_id: &str) -> usize {
+        let active = self
+            .active
+            .values()
+            .filter(|info| info.operator.project_id == project_id)
+            .count();
+        let idle = self
+            .idle
+            .values()
+            .filter(|info| info.operator.project_id == project_id)
+            .count();
+        active + idle
     }
 
     /// Get active operator info
@@ -166,11 +188,11 @@ mod tests {
     use super::*;
     use bhive_core::coordination::OperatorStatus;
     use chrono::Utc;
-    use std::path::Path;
 
-    fn create_test_operator(operator_type: OperatorType) -> Operator {
+    fn create_test_operator(project_id: &str, operator_type: OperatorType) -> Operator {
         Operator {
             id: Uuid::new_v4(),
+            project_id: project_id.to_string(),
             operator_type,
             status: OperatorStatus::Idle,
             workspace_path: None,
@@ -185,7 +207,7 @@ mod tests {
     #[test]
     fn test_operator_pool_lifecycle() {
         let mut pool = OperatorPool::new();
-        let operator = create_test_operator(OperatorType::Operator);
+        let operator = create_test_operator("test_project", OperatorType::Operator);
         let operator_id = operator.id;
         let task_id = Uuid::new_v4();
 
@@ -212,17 +234,32 @@ mod tests {
     }
 
     #[test]
-    fn test_get_idle_operator_by_type() {
+    fn test_get_idle_operator_by_type_and_project() {
         let mut pool = OperatorPool::new();
 
-        let operator = create_test_operator(OperatorType::Operator);
-        let builder = create_test_operator(OperatorType::Builder);
+        let operator = create_test_operator("project_a", OperatorType::Operator);
+        let builder = create_test_operator("project_a", OperatorType::Builder);
+        let other_project_op = create_test_operator("project_b", OperatorType::Operator);
 
         pool.add_idle(operator.clone(), PathBuf::from("/tmp/op"));
         pool.add_idle(builder.clone(), PathBuf::from("/tmp/build"));
+        pool.add_idle(other_project_op.clone(), PathBuf::from("/tmp/other"));
 
-        assert!(pool.get_idle_operator(OperatorType::Operator).is_some());
-        assert!(pool.get_idle_operator(OperatorType::Builder).is_some());
-        assert!(pool.get_idle_operator(OperatorType::Tester).is_none());
+        // Should find operators for project_a
+        assert!(pool.get_idle_operator("project_a", OperatorType::Operator).is_some());
+        assert!(pool.get_idle_operator("project_a", OperatorType::Builder).is_some());
+        assert!(pool.get_idle_operator("project_a", OperatorType::Tester).is_none());
+
+        // Should find operator for project_b
+        assert!(pool.get_idle_operator("project_b", OperatorType::Operator).is_some());
+        assert!(pool.get_idle_operator("project_b", OperatorType::Builder).is_none());
+
+        // Should not find operators for unknown project
+        assert!(pool.get_idle_operator("unknown", OperatorType::Operator).is_none());
+
+        // Count by project
+        assert_eq!(pool.count_for_project("project_a"), 2);
+        assert_eq!(pool.count_for_project("project_b"), 1);
+        assert_eq!(pool.count_for_project("unknown"), 0);
     }
 }

@@ -43,12 +43,18 @@ impl Coordinator {
 
     // === Operator Management ===
 
-    /// Acquire an idle operator or create a new one
-    pub async fn acquire_operator(&self, operator_type: OperatorType) -> Result<Operator> {
-        let row = sqlx::query("SELECT acquire_operator($1::operator_type) as operator_id")
-            .bind(operator_type)
-            .fetch_one(&self.pool)
-            .await?;
+    /// Acquire an idle operator or create a new one for a specific project
+    pub async fn acquire_operator(
+        &self,
+        project_id: &str,
+        operator_type: OperatorType,
+    ) -> Result<Operator> {
+        let row =
+            sqlx::query("SELECT acquire_operator($1, $2::operator_type) as operator_id")
+                .bind(project_id)
+                .bind(operator_type)
+                .fetch_one(&self.pool)
+                .await?;
 
         let operator_id: Uuid = row.get("operator_id");
         let operator = self.get_operator(operator_id).await?;
@@ -62,6 +68,7 @@ impl Coordinator {
             None,
             "operator_acquired",
             Some(serde_json::json!({
+                "project_id": project_id,
                 "operator_type": operator_type,
                 "reused": reused
             })),
@@ -117,6 +124,7 @@ impl Coordinator {
             r#"
             SELECT
                 id,
+                project_id,
                 operator_type,
                 status,
                 workspace_path,
@@ -143,6 +151,7 @@ impl Coordinator {
                 r#"
                 SELECT
                     id,
+                    project_id,
                     operator_type,
                     status,
                     workspace_path,
@@ -164,6 +173,7 @@ impl Coordinator {
                 r#"
                 SELECT
                     id,
+                    project_id,
                     operator_type,
                     status,
                     workspace_path,
@@ -192,13 +202,14 @@ impl Coordinator {
         // Insert task
         let task = sqlx::query_as::<_, Task>(
             r#"
-            INSERT INTO tasks (description, parent_id, session_id)
-            VALUES ($1, $2, $3)
+            INSERT INTO tasks (project_id, description, parent_id, session_id)
+            VALUES ($1, $2, $3, $4)
             RETURNING
                 id,
+                project_id,
                 description,
                 status,
-                ant_id,
+                operator_id,
                 parent_id,
                 session_id,
                 result,
@@ -208,6 +219,7 @@ impl Coordinator {
                 completed_at
             "#,
         )
+        .bind(&request.project_id)
         .bind(&request.description)
         .bind(request.parent_id)
         .bind(&request.session_id)
@@ -231,6 +243,7 @@ impl Coordinator {
             Some(task.id),
             "task_created",
             Some(serde_json::json!({
+                "project_id": request.project_id,
                 "description": request.description,
                 "has_dependencies": !request.dependencies.is_empty()
             })),
@@ -257,6 +270,7 @@ impl Coordinator {
             r#"
             SELECT
                 id,
+                project_id,
                 description,
                 status,
                 operator_id,

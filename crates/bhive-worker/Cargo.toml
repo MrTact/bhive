@@ -9,7 +9,11 @@ authors.workspace = true
 bhive-core = { path = "../bhive-core" }
 
 tokio = { workspace = true }
+tokio-util = { version = "0.7", features = ["rt"] }
 anyhow = { workspace = true }
 tracing = { workspace = true }
+uuid = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
 
 # TODO: Add rig-core and genai when implementing
