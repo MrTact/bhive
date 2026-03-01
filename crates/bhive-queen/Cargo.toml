@@ -18,4 +18,7 @@ chrono = { workspace = true }
 # Async trait support
 async-trait = "0.1"
 
+# Platform directories
+dirs = "5"
+
 # TODO: Add rig-core and genai when implementing

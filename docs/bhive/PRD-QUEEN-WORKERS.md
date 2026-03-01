@@ -160,7 +160,7 @@ struct BeePool {
 ### Phase 1: Core Design & Structure
 - [x] **#7** - Design Queen struct and core interfaces ✅ (queen.rs)
 - [x] **#8** - Implement Queen event loop with LISTEN/NOTIFY ✅ (queen.rs)
-- [ ] **#9** - Implement task assignment and bee selection logic (stubs exist)
+- [x] **#9** - Implement task assignment and bee selection logic ✅ (queen.rs - assign_task, select_or_spawn_operator, spawn_operator, determine_operator_type)
 
 ### Phase 2: Bee Naming & Pool Management
 - [x] **#16** - Create bee naming system with word lists ✅ (naming.rs)
